@@ -5,6 +5,8 @@ import os
 import pathlib
 import string
 import random
+import re
+
 MODULES_PATH=os.getenv("MODULES_PATH",f"{os.environ['HOME']}/Modules")
 def split_string_by_char(string,char=':'):
     PATTERN = re.compile(rf'''((?:[^\{char}"']|"[^"]*"|'[^']*')+)''')
@@ -19,9 +21,9 @@ files=[os.path.realpath(_) for _ in files]
 #Check if line is an "include" line
 def check_if_include_line(string):
     string=string.strip()
-    if line.startswith("< include") and lines.endswith(" >"):
-        line=line.removeprefix("< include").removesuffix(" >")
-        return split_string_by_char(line," ")
+    if string.startswith("< include") and string.endswith(" >"):
+        string=string.removeprefix("< include").removesuffix(" >")
+        return split_string_by_char(string," ")
     else:
         return False
 def check_if_module_is_already_compiled(path,module_type):
@@ -50,7 +52,7 @@ def compile_file(path,module_type="absolute"):
                submodule_to_include=include_line[0]
                if submodule_to_include.startswith('"') and submodule_to_include.endswith('"'):
                    submodule_type="relative"
-                   submodule_to_include=submodule_to_include[1:-1]
+                   submodule_to_include=submodule_to_include[1:-1]+".pyx"
                else:
                    submodule_type="absolute"
                submodule_path=os.path.realpath(os.path.expanduser(submodule_to_include))
@@ -73,14 +75,14 @@ def compile_file(path,module_type="absolute"):
                {submodule_function}()
                """
                compiled_strings.append(submodule)
-   if module_type == "absolute":
+    if module_type == "absolute":
        module_output_name=f"./{pathlib.Path(path).stem}.pyo"
-   else:
+    else:
        module_output_name=f"./{pathlib.Path(path).stem}-{hash(path)}.pyo"
-   compiled_strings='\n'.join(compiled_strings)
-   with open(module_output_name) as module_output_file:
+    compiled_strings='\n'.join(compiled_strings)
+    with open(module_output_name,"w+") as module_output_file:
        module_output_file.write(compiled_strings)
-   return compiled_strings
+    return compiled_strings
 
 
 for pyx in files:
