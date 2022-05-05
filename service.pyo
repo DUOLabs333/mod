@@ -1,0 +1,979 @@
+#!/usr/bin/env python
+
+import subprocess
+
+import re
+
+import sys
+
+import os
+
+import signal
+
+import typing
+
+import tempfile
+
+import shutil
+
+import threading
+
+import time
+
+
+
+
+import types
+
+utils = types.SimpleNamespace()
+def keEMkhUzny():
+     import subprocess
+     
+     import re
+     
+     import tempfile
+     
+     import os
+     
+     import pathlib
+     
+     import signal 
+     
+     import time
+     
+     
+     
+     def tempdir():
+     
+         return tempfile.gettempdir()
+     
+         
+     
+     TEMPDIR=tempdir()
+     
+     
+     
+     
+     
+     class DoesNotExist(Exception):
+     
+         pass
+     
+     
+     
+     def get_root_directory(class_name,root_variable=None,default_value=None):
+     
+         root_variable=default_value(root_variable,f"{class_name.upper()}_ROOT")
+     
+         default_value=default_value(default_value,f"{os.environ['HOME']}/{class_name.title()}s")
+     
+         return os.getenv(root_variable,default_value)
+     
+         
+     
+     #ROOT=get_root_directory()
+     
+     
+     
+     def list_items_in_root(names,flags,class_name):
+     
+         All=sorted(os.listdir(utils.ROOT))
+     
+         
+     
+         if "--started" in flags:
+     
+             names+=[_ for _ in All if "Started" in eval(f"{class_name}(_).Status()") ]
+     
+             flags=flags.remove("--started")
+     
+         if "--stopped" in flags:
+     
+             names+=[_ for _ in All if "Stopped" in eval(f"{class_name}(_).Status()") ]
+     
+             flags=flags.remove("--stopped")
+     
+         if "--enabled" in flags:
+     
+             names+=[_ for _ in All if "Enabled" in eval(f"{class_name}(_).Status()") ]
+     
+             flags=flags.remove("--enabled")
+     
+         
+     
+         if "--disabled" in flags:
+     
+             names+=[_ for _ in All if "Disabled" in eval(f"{class_name}(_).Status()") ]
+     
+             flags=flags.remove("--disabled")
+     
+     
+     
+         if "--all" in flags:
+     
+             names+=All
+     
+             flags=flags.remove("--all")
+     
+         return (names,flags)
+     
+     
+     
+     def flatten_list(items):
+     
+         """Yield items from any nested iterable."""
+     
+         for x in items:
+     
+             if isinstance(x, typing.Iterable) and not isinstance(x, (str, bytes)):
+     
+                 for sub_x in flatten_list(x):
+     
+                     yield sub_x
+     
+             else:
+     
+                 yield x
+     
+     
+     
+     def print_result_string(result):
+     
+         for element in result:
+     
+             if element is None:
+     
+                 print(end='')
+     
+             else:
+     
+                 print(element)
+     
+     
+     
+     def split_string_by_char(string,char=':'):
+     
+         PATTERN = re.compile(rf'''((?:[^\{char}"']|"[^"]*"|'[^']*')+)''')
+     
+         return [_ for _ in list(PATTERN.split(string)) if _ not in ['', char]]
+     
+     
+     
+     
+     
+     def shell_command(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,arbitrary=False,block=True):
+     
+         process = subprocess.Popen(command, stdout=stdout, stderr=stderr,universal_newlines=True,shell=arbitrary)
+     
+         if block:
+     
+             return process.communicate()[0]
+     
+     
+     
+     
+     
+     def get_value(variable,default):
+     
+         if not variable:
+     
+             return default
+     
+         else:
+     
+             return variable
+     
+     
+     
+     def class_init(self,_name,_flags=None,_env=None,_function=None):
+     
+         self.name=_name
+     
+         
+     
+         self.flags=get_value(_flags,FLAGS)
+     
+         
+     
+         self.function=get_value(_function,FUNCTION)
+     
+         
+     
+         if self.function not in ["init"]:
+     
+             if not os.path.isdir(f"{utils.ROOT}/{self.name}"):
+     
+                  raise DoesNotExist()
+     
+                  return
+     
+             os.chdir(f"{utils.ROOT}/{self.name}")
+     
+     
+     
+     def extract_arguments():
+     
+         arguments=sys.argv[1:]
+     
+         try:
+     
+             FUNCTION=arguments[0]
+     
+         except IndexError:
+     
+             print("No function specified!")
+     
+             exit()
+     
+         
+     
+         for i in range(len(arguments)):
+     
+             if not arguments[i].startswith("--"):
+     
+                 FLAGS=arguments[:i]
+     
+                 NAMES=arguments[i:]
+     
+                 break
+     
+         return (FLAGS,NAMES,FUNCTION)
+     
+     
+     
+     
+     
+     def add_environment_variable_to_string(string):
+     
+         return string+f"; export {env}"
+     
+     
+     
+     def wait(delay=None):
+     
+         if not delay:
+     
+             signal.pause()
+     
+         else:
+     
+             time.sleep(int(delay))
+     
+     
+     
+     def get_main_process(name,class_name):
+     
+         return [_[1:] for _ in utils.shell_command(["lsof","-Fp","-w",f"{utils.TEMPDIR}/{utils.class_name}_{self.name}.lock"]).splitlines()]
+     local_variables=locals().copy()
+     for key in local_variables:
+        exec(f"utils.{key} = {key}")
+
+keEMkhUzny()
+
+utils.ROOT=os.path.expanduser(os.getenv("SERVICE_ROOT","~/Services"))
+
+
+
+print(ROOT)
+
+arguments=sys.argv[1:]
+
+try:
+
+    FUNCTION=arguments[0]
+
+except IndexError:
+
+    print("No function specified!")
+
+    exit()
+
+arguments=arguments[1:]
+
+
+
+#Populate arguments if it is empty
+
+#if arguments==[]:
+
+#    arguments=['--all']
+
+
+
+NAMES=[]
+
+FLAGS=arguments
+
+TEMPDIR=tempfile.gettempdir()
+
+SHELL=os.getenv('SHELL','bash')
+
+SHELL_CWD=os.environ.get("PWD")
+
+
+
+#Helper functions
+
+def List(_names=None,_flags=None):
+
+    global FLAGS
+
+    if not _flags:
+
+        flags=FLAGS
+
+    else:
+
+        flags=_flags
+
+    
+
+    if not _names:
+
+        names=NAMES
+
+    else:
+
+        names=_names
+
+    
+
+    AllServices=sorted(os.listdir(f"{utils.ROOT}"))
+
+    
+
+    if "--started" in flags:
+
+        names+=[_ for _ in AllServices if "Started" in Service(_).Status() ]
+
+        FLAGS=FLAGS.remove("--started")
+
+    if "--stopped" in flags:
+
+        names+=[_ for _ in AllServices if "Stopped" in Service(_).Status() ]
+
+        FLAGS=FLAGS.remove("--stopped")
+
+    if "--enabled" in flags:
+
+        names+=[_ for _ in AllServices if "Enabled" in Service(_).Status() ]
+
+        FLAGS=FLAGS.remove("--enabled")
+
+    
+
+    if "--disabled" in flags:
+
+        names+=[_ for _ in AllServices if "Disabled" in Service(_).Status() ]
+
+        FLAGS=FLAGS.remove("--disabled")
+
+
+
+    if "--all" in flags:
+
+        names+=AllServices
+
+        FLAGS=FLAGS.remove("--all")
+
+    return names
+
+    
+
+def flatten(items):
+
+    """Yield items from any nested iterable; see Reference."""
+
+    for x in items:
+
+        if isinstance(x, typing.Iterable) and not isinstance(x, (str, bytes)):
+
+            for sub_x in flatten(x):
+
+                yield sub_x
+
+        else:
+
+            yield x
+
+
+
+def print_result(result):
+
+    for element in result:
+
+        if element is None:
+
+            print(end='')
+
+        else:
+
+            print(element)
+
+
+
+def split_by_char(string,char=':'):
+
+    PATTERN = re.compile(rf'''((?:[^\{char}"']|"[^"]*"|'[^']*')+)''')
+
+    return [_ for _ in list(PATTERN.split(string)) if _ not in ['', char]]
+
+    
+
+def Shell(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,shell=False,block=True):
+
+    process = subprocess.Popen(command, stdout=stdout, stderr=stderr,universal_newlines=True,shell=shell)
+
+    if block:
+
+        return process.communicate()[0]
+
+
+
+
+
+class ServiceDoesNotExist(Exception):
+
+    pass
+
+    
+
+class Service:
+
+    def __init__(self,_name,_flags=None,_function=None,_env=None):
+
+        self.name=_name
+
+        if not _flags:
+
+            self.flags=FLAGS
+
+        else:
+
+            self.flags=_flags
+
+           
+
+        if not _function:
+
+            self.function=FUNCTION
+
+        else:
+
+            self.function=_function
+
+        
+
+        if not _env:
+
+            self.env=f"export SERVICE_NAME={self.name}"
+
+        else:
+
+            self.env=_env
+
+
+
+        if self.function not in ["init"]:
+
+            if not os.path.isdir(f"{utils.ROOT}/{self.name}"):
+
+                 raise ServiceDoesNotExist()
+
+                 return
+
+            os.chdir(f"{utils.ROOT}/{self.name}")
+
+    
+
+    #Functions to be used in *service.py
+
+    def Run(self,command=""):
+
+        signal.signal(signal.SIGTERM,self.Exit)
+
+        with open(f"{TEMPDIR}/service_{self.name}.log","a+") as f:
+
+            f.write(f"Command: {command}\n")
+
+            f.flush()
+
+            Shell(f"{self.env}; {command}",stdout=f,shell=True)
+
+    
+
+    def Ps(self,process="auxiliary"):
+
+        
+
+        #Find main process
+
+        if process=="main":
+
+            processes=[_[1:] for _ in Shell(["lsof","-Fp","-w",f"{TEMPDIR}/service_{self.name}.lock"]).splitlines()]
+
+            
+
+        #Find processes running under main Start script
+
+        elif process=="auxiliary":
+
+            processes=Shell(["ps","auwwe"]).splitlines()
+
+            processes=[_.split()[1] for _ in processes if f"SERVICE_NAME={self.name}" in _]
+
+            
+
+        
+
+        return list(map(int,processes))
+
+
+
+    
+
+    def Env(self,env):
+
+        self.env+=f"; export {env}"
+
+    
+
+    def Container(self,_container=None):
+
+        #Convience --- if conainer name is not specified, it will assume that the container is the same name as the service
+
+        
+
+        if not _container:
+
+            _container=self.name
+
+            
+
+        self.Down(f"container stop {_container}; sleep 1")
+
+        self.Run(f"container start {_container}")
+
+        
+
+        #Wait 2 seconds before beginning
+
+        time.sleep(2)
+
+        with open(f"{TEMPDIR}/service_{self.name}.log","a+") as f:
+
+            Shell(["tail","-f","-n","+1",f"{TEMPDIR}/container_{_container}.log"],stdout=f,block=False)
+
+    
+
+    def Down(self,func):
+
+        #Yes, this decorator stuff is absolutely neccessary, anything else will not work
+
+    
+
+        if isinstance(func,str):
+
+            #So func won't be overwritten
+
+            func_str=func
+
+            def func():
+
+                Shell(func_str,shell=True)
+
+        def decorator_Exit(exit_func):
+
+            def new_Exit(*args, **kwargs):
+
+                #So exit() is the last function run
+
+                func()
+
+                exit_func(*args, **kwargs)
+
+            return new_Exit
+
+        self.Exit=decorator_Exit(self.Exit)
+
+    
+
+    def Loop(self,command,delay=60):
+
+        if isinstance(command,str):
+
+            def func():
+
+                while True:
+
+                    Run(command)
+
+                    time.sleep(delay)
+
+        else:
+
+            def func():
+
+                while True:  
+
+                    command()
+
+                    time.sleep(delay)
+
+        threading.Thread(target=func).start()
+
+
+
+    def Wait(self,delay=None):
+
+        if not delay:
+
+            signal.pause()
+
+        else:
+
+            time.sleep(int(delay))
+
+    
+
+    def Exit(self,signum,frame):
+
+        exit()
+
+        
+
+    #Commands      
+
+    def Start(self):
+
+        
+
+        if "Started" in self.Status():
+
+            return f"Service {self.name} is already started"
+
+        
+
+        if os.path.exists("data"):
+
+            os.chdir("data")
+
+        
+
+        if "Enabled" in self.Status():
+
+            service_file="service.py"
+
+        else:
+
+            service_file=".service.py"
+
+        
+
+        #Fork process, so it can run in the background
+
+        pid=os.fork()
+
+        
+
+        #If child, run code, then exit 
+
+        if pid==0:
+
+            #Open a lock file so I can find it with lsof later
+
+            lock_file=open(f"{TEMPDIR}/service_{self.name}.lock","w+")
+
+            
+
+            #Run *service.py
+
+            with open(f"{utils.ROOT}/{self.name}/{service_file}") as f:
+
+                code=f.read()
+
+            exec(code,globals(),locals())
+
+            
+
+            #Don't exit script yet.
+
+            self.Wait()
+
+            exit()
+
+       
+
+    def Stop(self):
+
+        if "Stopped" in self.Status():
+
+            return f"Service {self.name} is already stopped"
+
+            
+
+        #Get PID of main Start process
+
+        for pid in self.Ps("main"):
+
+            os.kill(pid,signal.SIGTERM)
+
+            try:
+
+                os.waitpid(pid,0)
+
+            except:
+
+                pass
+
+        #Kill all files under service
+
+        for pid in self.Ps("auxiliary"):
+
+            try:
+
+                os.kill(pid,signal.SIGTERM)
+
+                try:
+
+                    os.waitpid(pid,0)
+
+                except:
+
+                    pass
+
+
+
+            except ProcessLookupError:
+
+                pass
+
+       
+
+        try:
+
+           os.remove(f"{TEMPDIR}/service_{self.name}.log")
+
+        except FileNotFoundError:
+
+            pass
+
+        
+
+        try:
+
+           os.remove(f"{TEMPDIR}/service_{self.name}.lock")
+
+        except FileNotFoundError:
+
+            pass
+
+        
+
+    def Restart(self):
+
+        return [self.Stop(),self.Start()]
+
+    
+
+    
+
+    def List(self):
+
+        return self.name
+
+
+
+    def Init(self):
+
+       
+
+        os.makedirs(f"{utils.ROOT}/{self.name}",exist_ok=True)
+
+        os.chdir(f"{utils.ROOT}/{self.name}")
+
+        os.makedirs("data",exist_ok=True)
+
+        with open(f".service.py",'a'):
+
+            pass
+
+        
+
+        if '--no-edit' not in self.flags:
+
+            self.Edit()
+
+
+
+    def Edit(self):
+
+        if "Enabled" in self.Status():
+
+            Shell([os.getenv("EDITOR","vi"),f"{utils.ROOT}/{self.name}/service.py"],stdout=None)
+
+        else:
+
+            Shell([os.getenv("EDITOR","vi"),f"{utils.ROOT}/{self.name}/.service.py"],stdout=None)
+
+
+
+    def Status(self):
+
+        status=[]
+
+        if os.path.isfile(f"{TEMPDIR}/service_{self.name}.log"):
+
+            status+=["Started"]
+
+        else:
+
+            status+=["Stopped"]
+
+        
+
+        if os.path.exists(f"{utils.ROOT}/{self.name}/service.py"):
+
+            status+=["Enabled"]
+
+        else:
+
+            status+=["Disabled"]
+
+        return status
+
+    
+
+    def Enable(self):
+
+        if "Enabled" in self.Status():
+
+            return [f"{self.name} is already enabled"]
+
+        else:
+
+            os.rename(f"{utils.ROOT}/{self.name}/.service.py",f"{utils.ROOT}/{self.name}/service.py")
+
+        
+
+        if '--now' in self.flags:
+
+            return [self.Start()]
+
+
+
+            
+
+    def Disable(self):
+
+        if "Disabled" in self.Status():
+
+            return [f"{self.name} is already disabled"]
+
+        else:
+
+            os.rename(f"{utils.ROOT}/{self.name}/service.py",f"{utils.ROOT}/{self.name}/.service.py")
+
+        
+
+        if '--now' in self.flags:
+
+            return [self.Stop()]
+
+
+
+    def Log(self):
+
+        Shell(["less","+G",f"{TEMPDIR}/service_{self.name}.log"],stdout=None)
+
+    
+
+    def Delete(self):
+
+        self.Stop()
+
+        shutil.rmtree(self.name)
+
+    
+
+    def Watch(self):
+
+        Shell(["tail","-f",f"{TEMPDIR}/service_{self.name}.log"],stdout=None)
+
+
+
+
+
+#Initializing some important things
+
+#Flags go before the actual service names
+
+for i in range(len(arguments)):
+
+    if not arguments[i].startswith("--"):
+
+        FLAGS=arguments[:i]
+
+        NAMES=arguments[i:]
+
+        break
+
+
+
+
+
+NAMES=List(NAMES)
+
+
+
+if NAMES==[]:
+
+    print("No services specified!")
+
+    exit()
+
+if not FLAGS:
+
+    FLAGS=[]
+
+for name in NAMES:
+
+     
+
+    try:
+
+        service=Service(name,FLAGS)
+
+    except ServiceDoesNotExist:
+
+        print(f"Service {name} does not exist")
+
+        continue
+
+    
+
+    #Export all service methods to be used in *service.py
+
+    for func in [func for func in dir(Service) if callable(getattr(Service, func)) and not func.startswith('__')]:
+
+        exec(f"{func} = service.{func}")
+
+    
+
+    try:
+
+        result=list(flatten([getattr(service,FUNCTION.title())()]))
+
+    except AttributeError:
+
+        print(f"Command {FUNCTION} doesn't exist!")
+
+        exit()
+
+    print_result(result)
+
+        
+
+
+
+    

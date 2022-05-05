@@ -6,6 +6,9 @@ import pathlib
 import string
 import random
 import re
+import hashlib
+import textwrap
+import itertools
 
 MODULES_PATH=os.getenv("MODULES_PATH",f"{os.environ['HOME']}/Modules")
 def split_string_by_char(string,char=':'):
@@ -20,12 +23,13 @@ files=[os.path.realpath(_) for _ in files]
 
 #Check if line is an "include" line
 def check_if_include_line(string):
+    indentation=''.join(itertools.takewhile(str.isspace,string))
     string=string.strip()
     if string.startswith("< include") and string.endswith(" >"):
         string=string.removeprefix("< include").removesuffix(" >")
-        return split_string_by_char(string," ")
+        return indentation, split_string_by_char(string," ")
     else:
-        return False
+        return '',False
 def check_if_module_is_already_compiled(path,module_type):
     name=pathlib.Path(path).stem
     if module_type=="absolute":
@@ -35,16 +39,19 @@ def check_if_module_is_already_compiled(path,module_type):
         else:
             return False
     else:
-        if os.path.isfile(f"./{name}-{hash(path)}.pyo"):
-            with open(f"./{name}-{hash(path)}.pyo") as module:
+        if os.path.isfile(f"./{name}-{hash_string(path)}.pyo"):
+            with open(f"./{name}-{hash_string(path)}.pyo") as module:
                 return module.read()
         else:
             return False
+def hash_string(string):
+    return hashlib.sha1(string.encode()).hexdigest()
 def compile_file(path,module_type="absolute"):
+    path=path.strip()
     compiled_strings=[]
     with open(path,'r') as file_to_compile:
         for line in file_to_compile:
-            include_line=check_if_include_line(line)
+            indentation, include_line=check_if_include_line(line)
             if not include_line:
                 compiled_strings.append(line)
                 continue
@@ -62,23 +69,33 @@ def compile_file(path,module_type="absolute"):
                if not submodule:
                    submodule=compile_file(submodule_path,submodule_type)
                
-               submodule_function=''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
-               submodule=f"""
+               submodule_function=''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase, k=10))
+               submodule="\n     ".join(submodule.splitlines())
+               submodule_template="""
                import types
                
                {submodule_name} = types.SimpleNamespace()
                def {submodule_function}():
-                   {submodule}
-                   for key in locals():
+                    {submodule}
+                    local_variables=locals().copy()
+                    for key in local_variables:
                        exec(f"{submodule_name}.{{key}} = {{key}}")
                
                {submodule_function}()
                """
+               # Remove leading spaces that is present in the source code
+               submodule_template=textwrap.dedent(submodule_template)
+               
+               # Do this so I won't have to deal with str.format
+               submodule=eval(f"f{repr(submodule_template)}")
+               
+               #Indent as much as the original include line
+               submodule=textwrap.indent(submodule,indentation)
                compiled_strings.append(submodule)
     if module_type == "absolute":
        module_output_name=f"./{pathlib.Path(path).stem}.pyo"
     else:
-       module_output_name=f"./{pathlib.Path(path).stem}-{hash(path)}.pyo"
+       module_output_name=f"./{pathlib.Path(path).stem}-{hash_string(path)}.pyo"
     compiled_strings='\n'.join(compiled_strings)
     with open(module_output_name,"w+") as module_output_file:
        module_output_file.write(compiled_strings)
