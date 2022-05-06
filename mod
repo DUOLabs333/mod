@@ -15,11 +15,34 @@ def split_string_by_char(string,char=':'):
     PATTERN = re.compile(rf'''((?:[^\{char}"']|"[^"]*"|'[^']*')+)''')
     return [_ for _ in list(PATTERN.split(string)) if _ not in ['', char]]
 
+def extract_arguments():
+    arguments=sys.argv[1:]
+    try:
+        FUNCTION=arguments[0]
+    except IndexError:
+        print("No function specified!")
+        exit()
+    arguments=arguments[1:]
+    
+    NAMES=[]
+    FLAGS=arguments
+    for i in range(len(arguments)):
+        if not arguments[i].startswith("--"):
+            FLAGS=arguments[:i]
+            NAMES=arguments[i:]
+            break
+    return (NAMES,FLAGS,FUNCTION)
+
 #Get files to compile
-files = sys.argv[1:]
+files, flags, function = extract_arguments()
 
 #Get absolute path of files
-files=[os.path.realpath(_) for _ in files]
+files=[os.path.abspath(_) for _ in files]
+
+def make_executable(path):
+    mode = os.stat(path).st_mode
+    mode |= (mode & 0o444) >> 2    # copy R bits to X
+    os.chmod(path, mode)
 
 #Check if line is an "include" line
 def check_if_include_line(string):
@@ -59,10 +82,14 @@ def compile_file(path,module_type="absolute"):
                submodule_to_include=include_line[0]
                if submodule_to_include.startswith('"') and submodule_to_include.endswith('"'):
                    submodule_type="relative"
+                   submodule_to_include=submodule_to_include[1:-1]
                else:
                    submodule_type="absolute"
-               submodule_to_include=submodule_to_include[1:-1]
-               submodule_path=os.path.abspath(os.path.expanduser(submodule_to_include))
+               
+               if submodule_type=="relative":
+                   submodule_path=os.path.abspath(os.path.expanduser(submodule_to_include))
+               else:
+                   submodule_path=os.path.abspath(os.path.expanduser(MODULES_PATH+'/'+submodule_to_include))
                submodule_name=pathlib.Path(submodule_path).stem
                submodule_path=os.path.realpath(submodule_path)
                submodule=check_if_module_is_already_compiled(submodule_path,submodule_type)
@@ -102,10 +129,17 @@ def compile_file(path,module_type="absolute"):
        module_output_file.write(compiled_strings)
     return compiled_strings
 
+if function=='build':
+    for pyx in files:
+        compile_file(pyx,"absolute")
+        if '--make-script' in flags:
+            make_executable(pyx.removesuffix(".pyx")+".pyo")
+            os.rename(pyx.removesuffix(".pyx")+".pyo",pyx.removesuffix(".pyx"))
 
-for pyx in files:
-    compile_file(pyx,"absolute")
-
+elif function=="clean":
+    for item in os.listdir("."):
+        if item.endswith(".pyo"):
+            os.remove("./"+item)
                        
                    
                    
