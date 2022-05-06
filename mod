@@ -90,6 +90,19 @@ def compile_file(path,module_type="absolute"):
                    submodule_path=os.path.abspath(os.path.expanduser(submodule_to_include))
                else:
                    submodule_path=os.path.abspath(os.path.expanduser(MODULES_PATH+'/'+submodule_to_include))
+                   
+               if not submodule_path.endswith(".pyx"):
+                   with open(submodule_path,"rb") as resource:
+                       import base64
+                       resource_data=base64.b64encode(resource.read())
+                       submodule=f"""
+                            import base64
+                            {include_line[1]} = base64.b64decode({resource_data})
+                       """
+                       submodule=textwrap.dedent(submodule)
+                       submodule=textwrap.indent(submodule,indentation)
+                       compiled_strings.append(submodule)
+                   continue
                submodule_name=pathlib.Path(submodule_path).stem
                submodule_path=os.path.realpath(submodule_path)
                submodule=check_if_module_is_already_compiled(submodule_path,submodule_type)
@@ -98,7 +111,7 @@ def compile_file(path,module_type="absolute"):
                    submodule=compile_file(submodule_path,submodule_type)
                
                submodule_function=''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase, k=10))
-               submodule="\n     ".join(submodule.splitlines())
+               submodule=textwrap.indent(submodule,"     ")
                submodule_template="""
                import types
                
