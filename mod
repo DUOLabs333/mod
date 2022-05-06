@@ -59,11 +59,12 @@ def compile_file(path,module_type="absolute"):
                submodule_to_include=include_line[0]
                if submodule_to_include.startswith('"') and submodule_to_include.endswith('"'):
                    submodule_type="relative"
-                   submodule_to_include=submodule_to_include[1:-1]+".pyx"
                else:
                    submodule_type="absolute"
-               submodule_path=os.path.realpath(os.path.expanduser(submodule_to_include))
+               submodule_to_include=submodule_to_include[1:-1]
+               submodule_path=os.path.abspath(os.path.expanduser(submodule_to_include))
                submodule_name=pathlib.Path(submodule_path).stem
+               submodule_path=os.path.realpath(submodule_path)
                submodule=check_if_module_is_already_compiled(submodule_path,submodule_type)
                
                if not submodule:

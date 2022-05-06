@@ -16,7 +16,13 @@ import time
 
 def tempdir():
 
-    return tempfile.gettempdir()
+    if os.uname().sysname=="Darwin":
+
+        return "/tmp"
+
+    else:
+
+        return tempfile.gettempdir()
 
     
 
@@ -34,11 +40,11 @@ class DoesNotExist(Exception):
 
 def get_root_directory(class_name,root_variable=None,default_value=None):
 
-    root_variable=default_value(root_variable,f"{class_name.upper()}_ROOT")
+    root_variable=get_value(root_variable,f"{class_name.upper()}_ROOT")
 
-    default_value=default_value(default_value,f"{os.environ['HOME']}/{class_name.title()}s")
+    default_value=get_value(default_value,f"{os.environ['HOME']}/{class_name.title()}s")
 
-    return os.getenv(root_variable,default_value)
+    return os.path.expanduser(os.getenv(root_variable,default_value))
 
     
 
@@ -48,7 +54,7 @@ def get_root_directory(class_name,root_variable=None,default_value=None):
 
 def list_items_in_root(names,flags,class_name):
 
-    All=sorted(os.listdir(utils.ROOT))
+    All=[_ for _ in sorted(os.listdir(ROOT)) if not _.startswith('.') ]
 
     
 
@@ -56,19 +62,19 @@ def list_items_in_root(names,flags,class_name):
 
         names+=[_ for _ in All if "Started" in eval(f"{class_name}(_).Status()") ]
 
-        flags=flags.remove("--started")
+        flags.remove("--started")
 
     if "--stopped" in flags:
 
         names+=[_ for _ in All if "Stopped" in eval(f"{class_name}(_).Status()") ]
 
-        flags=flags.remove("--stopped")
+        flags.remove("--stopped")
 
     if "--enabled" in flags:
 
         names+=[_ for _ in All if "Enabled" in eval(f"{class_name}(_).Status()") ]
 
-        flags=flags.remove("--enabled")
+        flags.remove("--enabled")
 
     
 
@@ -76,7 +82,7 @@ def list_items_in_root(names,flags,class_name):
 
         names+=[_ for _ in All if "Disabled" in eval(f"{class_name}(_).Status()") ]
 
-        flags=flags.remove("--disabled")
+        flags.remove("--disabled")
 
 
 
@@ -84,9 +90,9 @@ def list_items_in_root(names,flags,class_name):
 
         names+=All
 
-        flags=flags.remove("--all")
+        flags.remove("--all")
 
-    return (names,flags)
+    return names
 
 
 
@@ -108,9 +114,9 @@ def flatten_list(items):
 
 
 
-def print_result_string(result):
+def print_list(l):
 
-    for element in result:
+    for element in l:
 
         if element is None:
 
@@ -156,29 +162,29 @@ def get_value(variable,default):
 
 
 
-def class_init(self,_name,_flags=None,_env=None,_function=None):
+def class_init(class_self,_name,_flags=None,_env=None,_function=None):
 
-    self.name=_name
-
-    
-
-    self.flags=get_value(_flags,FLAGS)
+    class_self.name=_name
 
     
 
-    self.function=get_value(_function,FUNCTION)
+    class_self.flags=get_value(_flags,FLAGS)
 
     
 
-    if self.function not in ["init"]:
+    class_self.function=get_value(_function,FUNCTION)
 
-        if not os.path.isdir(f"{utils.ROOT}/{self.name}"):
+    
+
+    if class_self.function not in ["init"]:
+
+        if not os.path.isdir(f"{ROOT}/{class_self.name}"):
 
              raise DoesNotExist()
 
              return
 
-        os.chdir(f"{utils.ROOT}/{self.name}")
+        os.chdir(f"{ROOT}/{class_self.name}")
 
 
 
@@ -196,7 +202,13 @@ def extract_arguments():
 
         exit()
 
+    arguments=arguments[1:]
+
     
+
+    NAMES=[]
+
+    FLAGS=arguments
 
     for i in range(len(arguments)):
 
@@ -208,13 +220,17 @@ def extract_arguments():
 
             break
 
-    return (FLAGS,NAMES,FUNCTION)
+    
+
+    return (NAMES,FLAGS,FUNCTION)
 
 
 
+FLAGS, NAMES, FUNCTION = extract_arguments()
 
 
-def add_environment_variable_to_string(string):
+
+def add_environment_variable_to_string(string,env_var):
 
     return string+f"; export {env}"
 
@@ -234,4 +250,30 @@ def wait(delay=None):
 
 def get_main_process(name,class_name):
 
-    return [_[1:] for _ in utils.shell_command(["lsof","-Fp","-w",f"{utils.TEMPDIR}/{utils.class_name}_{self.name}.lock"]).splitlines()]
+    return list(map(int,[_[1:] for _ in shell_command(["lsof","-Fp","-w",f"{TEMPDIR}/{class_name}_{self.name}.lock"]).splitlines()]))
+
+
+
+
+
+def execute_class_method(class_instance,function):
+
+    if not callable(getattr(class_instance, function.title(),None)):
+
+            print(f"Command {function} doesn't exist!")
+
+            exit()
+
+    else:
+
+        return list(flatten([getattr(class_instance,function.title())()]))
+
+
+
+def export_methods_globally(class_instance_string):
+
+    Class=eval(f"{class_instance_string}.__class__")
+
+    for func in [func for func in dir(Class) if callable(getattr(Class, func)) and not func.startswith('__')]:
+
+        exec(f"{func} = {class_instance_string}.{func}")

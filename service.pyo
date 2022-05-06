@@ -26,7 +26,7 @@ import time
 import types
 
 utils = types.SimpleNamespace()
-def keEMkhUzny():
+def iVSdLLeBRc():
      import subprocess
      
      import re
@@ -45,7 +45,13 @@ def keEMkhUzny():
      
      def tempdir():
      
-         return tempfile.gettempdir()
+         if os.uname().sysname=="Darwin":
+     
+             return "/tmp"
+     
+         else:
+     
+             return tempfile.gettempdir()
      
          
      
@@ -63,11 +69,11 @@ def keEMkhUzny():
      
      def get_root_directory(class_name,root_variable=None,default_value=None):
      
-         root_variable=default_value(root_variable,f"{class_name.upper()}_ROOT")
+         root_variable=get_value(root_variable,f"{class_name.upper()}_ROOT")
      
-         default_value=default_value(default_value,f"{os.environ['HOME']}/{class_name.title()}s")
+         default_value=get_value(default_value,f"{os.environ['HOME']}/{class_name.title()}s")
      
-         return os.getenv(root_variable,default_value)
+         return os.path.expanduser(os.getenv(root_variable,default_value))
      
          
      
@@ -77,7 +83,7 @@ def keEMkhUzny():
      
      def list_items_in_root(names,flags,class_name):
      
-         All=sorted(os.listdir(utils.ROOT))
+         All=[_ for _ in sorted(os.listdir(ROOT)) if not _.startswith('.') ]
      
          
      
@@ -85,19 +91,19 @@ def keEMkhUzny():
      
              names+=[_ for _ in All if "Started" in eval(f"{class_name}(_).Status()") ]
      
-             flags=flags.remove("--started")
+             flags.remove("--started")
      
          if "--stopped" in flags:
      
              names+=[_ for _ in All if "Stopped" in eval(f"{class_name}(_).Status()") ]
      
-             flags=flags.remove("--stopped")
+             flags.remove("--stopped")
      
          if "--enabled" in flags:
      
              names+=[_ for _ in All if "Enabled" in eval(f"{class_name}(_).Status()") ]
      
-             flags=flags.remove("--enabled")
+             flags.remove("--enabled")
      
          
      
@@ -105,7 +111,7 @@ def keEMkhUzny():
      
              names+=[_ for _ in All if "Disabled" in eval(f"{class_name}(_).Status()") ]
      
-             flags=flags.remove("--disabled")
+             flags.remove("--disabled")
      
      
      
@@ -113,9 +119,9 @@ def keEMkhUzny():
      
              names+=All
      
-             flags=flags.remove("--all")
+             flags.remove("--all")
      
-         return (names,flags)
+         return names
      
      
      
@@ -137,9 +143,9 @@ def keEMkhUzny():
      
      
      
-     def print_result_string(result):
+     def print_list(l):
      
-         for element in result:
+         for element in l:
      
              if element is None:
      
@@ -185,29 +191,29 @@ def keEMkhUzny():
      
      
      
-     def class_init(self,_name,_flags=None,_env=None,_function=None):
+     def class_init(class_self,_name,_flags=None,_env=None,_function=None):
      
-         self.name=_name
-     
-         
-     
-         self.flags=get_value(_flags,FLAGS)
+         class_self.name=_name
      
          
      
-         self.function=get_value(_function,FUNCTION)
+         class_self.flags=get_value(_flags,FLAGS)
      
          
      
-         if self.function not in ["init"]:
+         class_self.function=get_value(_function,FUNCTION)
      
-             if not os.path.isdir(f"{utils.ROOT}/{self.name}"):
+         
+     
+         if class_self.function not in ["init"]:
+     
+             if not os.path.isdir(f"{ROOT}/{class_self.name}"):
      
                   raise DoesNotExist()
      
                   return
      
-             os.chdir(f"{utils.ROOT}/{self.name}")
+             os.chdir(f"{ROOT}/{class_self.name}")
      
      
      
@@ -225,7 +231,13 @@ def keEMkhUzny():
      
              exit()
      
+         arguments=arguments[1:]
+     
          
+     
+         NAMES=[]
+     
+         FLAGS=arguments
      
          for i in range(len(arguments)):
      
@@ -237,13 +249,17 @@ def keEMkhUzny():
      
                  break
      
-         return (FLAGS,NAMES,FUNCTION)
+         
+     
+         return (NAMES,FLAGS,FUNCTION)
      
      
      
+     FLAGS, NAMES, FUNCTION = extract_arguments()
      
      
-     def add_environment_variable_to_string(string):
+     
+     def add_environment_variable_to_string(string,env_var):
      
          return string+f"; export {env}"
      
@@ -263,48 +279,54 @@ def keEMkhUzny():
      
      def get_main_process(name,class_name):
      
-         return [_[1:] for _ in utils.shell_command(["lsof","-Fp","-w",f"{utils.TEMPDIR}/{utils.class_name}_{self.name}.lock"]).splitlines()]
+         return list(map(int,[_[1:] for _ in shell_command(["lsof","-Fp","-w",f"{TEMPDIR}/{class_name}_{self.name}.lock"]).splitlines()]))
+     
+     
+     
+     
+     
+     def execute_class_method(class_instance,function):
+     
+         if not callable(getattr(class_instance, function.title(),None)):
+     
+                 print(f"Command {function} doesn't exist!")
+     
+                 exit()
+     
+         else:
+     
+             return list(flatten([getattr(class_instance,function.title())()]))
+     
+     
+     
+     def export_methods_globally(class_instance_string):
+     
+         Class=eval(f"{class_instance_string}.__class__")
+     
+         for func in [func for func in dir(Class) if callable(getattr(Class, func)) and not func.startswith('__')]:
+     
+             exec(f"{func} = {class_instance_string}.{func}")
      local_variables=locals().copy()
      for key in local_variables:
         exec(f"utils.{key} = {key}")
 
-keEMkhUzny()
-
-utils.ROOT=os.path.expanduser(os.getenv("SERVICE_ROOT","~/Services"))
+iVSdLLeBRc()
 
 
 
-print(ROOT)
+CLASS_NAME="Service"
 
-arguments=sys.argv[1:]
-
-try:
-
-    FUNCTION=arguments[0]
-
-except IndexError:
-
-    print("No function specified!")
-
-    exit()
-
-arguments=arguments[1:]
+ROOT=utils.get_root_directory(CLASS_NAME)
 
 
 
-#Populate arguments if it is empty
-
-#if arguments==[]:
-
-#    arguments=['--all']
+NAMES,FLAGS,FUNCTION=utils.extract_arguments()
 
 
 
-NAMES=[]
+TEMPDIR=utils.TEMPDIR
 
-FLAGS=arguments
 
-TEMPDIR=tempfile.gettempdir()
 
 SHELL=os.getenv('SHELL','bash')
 
@@ -312,129 +334,41 @@ SHELL_CWD=os.environ.get("PWD")
 
 
 
-#Helper functions
 
-def List(_names=None,_flags=None):
 
-    global FLAGS
+def list_services(*args, **kwargs):
 
-    if not _flags:
+    return utils.list_items_in_root(*args, FLAGS,CLASS_NAME,**kwargs)    
 
-        flags=FLAGS
 
-    else:
 
-        flags=_flags
+def flatten(*args, **kwargs):
 
-    
+    return utils.flatten_list(*args, **kwargs)
 
-    if not _names:
 
-        names=NAMES
 
-    else:
+def print_result(*args, **kwargs):
 
-        names=_names
+    return utils.print_list(*args, **kwargs)
 
-    
 
-    AllServices=sorted(os.listdir(f"{utils.ROOT}"))
+
+def split_by_char(*args, **kwargs):
+
+    return utils.split_by_char(*args, **kwargs)
 
     
 
-    if "--started" in flags:
+def Shell(*args, **kwargs):
 
-        names+=[_ for _ in AllServices if "Started" in Service(_).Status() ]
-
-        FLAGS=FLAGS.remove("--started")
-
-    if "--stopped" in flags:
-
-        names+=[_ for _ in AllServices if "Stopped" in Service(_).Status() ]
-
-        FLAGS=FLAGS.remove("--stopped")
-
-    if "--enabled" in flags:
-
-        names+=[_ for _ in AllServices if "Enabled" in Service(_).Status() ]
-
-        FLAGS=FLAGS.remove("--enabled")
-
-    
-
-    if "--disabled" in flags:
-
-        names+=[_ for _ in AllServices if "Disabled" in Service(_).Status() ]
-
-        FLAGS=FLAGS.remove("--disabled")
-
-
-
-    if "--all" in flags:
-
-        names+=AllServices
-
-        FLAGS=FLAGS.remove("--all")
-
-    return names
-
-    
-
-def flatten(items):
-
-    """Yield items from any nested iterable; see Reference."""
-
-    for x in items:
-
-        if isinstance(x, typing.Iterable) and not isinstance(x, (str, bytes)):
-
-            for sub_x in flatten(x):
-
-                yield sub_x
-
-        else:
-
-            yield x
-
-
-
-def print_result(result):
-
-    for element in result:
-
-        if element is None:
-
-            print(end='')
-
-        else:
-
-            print(element)
-
-
-
-def split_by_char(string,char=':'):
-
-    PATTERN = re.compile(rf'''((?:[^\{char}"']|"[^"]*"|'[^']*')+)''')
-
-    return [_ for _ in list(PATTERN.split(string)) if _ not in ['', char]]
-
-    
-
-def Shell(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,shell=False,block=True):
-
-    process = subprocess.Popen(command, stdout=stdout, stderr=stderr,universal_newlines=True,shell=shell)
-
-    if block:
-
-        return process.communicate()[0]
+    return utils.shell_command(*args, **kwargs)
 
 
 
 
 
-class ServiceDoesNotExist(Exception):
-
-    pass
+ServiceDoesNotExist=utils.DoesNotExist
 
     
 
@@ -442,27 +376,7 @@ class Service:
 
     def __init__(self,_name,_flags=None,_function=None,_env=None):
 
-        self.name=_name
-
-        if not _flags:
-
-            self.flags=FLAGS
-
-        else:
-
-            self.flags=_flags
-
-           
-
-        if not _function:
-
-            self.function=FUNCTION
-
-        else:
-
-            self.function=_function
-
-        
+        utils.class_init(self,_name,_flags,_function,_env)
 
         if not _env:
 
@@ -472,33 +386,37 @@ class Service:
 
             self.env=_env
 
-
-
-        if self.function not in ["init"]:
-
-            if not os.path.isdir(f"{utils.ROOT}/{self.name}"):
-
-                 raise ServiceDoesNotExist()
-
-                 return
-
-            os.chdir(f"{utils.ROOT}/{self.name}")
-
     
 
     #Functions to be used in *service.py
 
-    def Run(self,command=""):
+    def Run(self,command="",pipe=False):
 
-        signal.signal(signal.SIGTERM,self.Exit)
+        with open(f"{TEMPDIR}/service_{self.name}.log","a+") as log_file:
 
-        with open(f"{TEMPDIR}/service_{self.name}.log","a+") as f:
+            log_file.write(f"Command: {command}\n")
 
-            f.write(f"Command: {command}\n")
+            log_file.flush()
 
-            f.flush()
 
-            Shell(f"{self.env}; {command}",stdout=f,shell=True)
+
+            #Pipe output to variable
+
+            if pipe:
+
+                stdout=subprocess.PIPE
+
+                stderr=subprocess.DEVNULL
+
+            #Print output to file
+
+            else:
+
+                stdout=log_file
+
+                stderr=subprocess.STDOUT
+
+            return Shell(f"{self.env}; {command}",stdout=stdout,stderr=stderr,shell=True)
 
     
 
@@ -510,7 +428,7 @@ class Service:
 
         if process=="main":
 
-            processes=[_[1:] for _ in Shell(["lsof","-Fp","-w",f"{TEMPDIR}/service_{self.name}.lock"]).splitlines()]
+            return utils.get_main_process(self.name,CLASS_NAMR)
 
             
 
@@ -522,19 +440,15 @@ class Service:
 
             processes=[_.split()[1] for _ in processes if f"SERVICE_NAME={self.name}" in _]
 
-            
-
-        
-
-        return list(map(int,processes))
+            return list(map(int,processes))
 
 
 
     
 
-    def Env(self,env):
+    def Env(self,*args, **kwargs):
 
-        self.env+=f"; export {env}"
+        self.env=utils.add_environment_variable_to_string(self.env,*args, **kwargs)
 
     
 
@@ -596,7 +510,9 @@ class Service:
 
         self.Exit=decorator_Exit(self.Exit)
 
-    
+        signal.signal(signal.SIGTERM,self.Exit)
+
+        
 
     def Loop(self,command,delay=60):
 
@@ -682,13 +598,15 @@ class Service:
 
             #Open a lock file so I can find it with lsof later
 
+            signal.signal(signal.SIGTERM,self.Exit)
+
             lock_file=open(f"{TEMPDIR}/service_{self.name}.lock","w+")
 
             
 
             #Run *service.py
 
-            with open(f"{utils.ROOT}/{self.name}/{service_file}") as f:
+            with open(f"{ROOT}/{self.name}/{service_file}") as f:
 
                 code=f.read()
 
@@ -788,9 +706,9 @@ class Service:
 
        
 
-        os.makedirs(f"{utils.ROOT}/{self.name}",exist_ok=True)
+        os.makedirs(f"{ROOT}/{self.name}",exist_ok=True)
 
-        os.chdir(f"{utils.ROOT}/{self.name}")
+        os.chdir(f"{ROOT}/{self.name}")
 
         os.makedirs("data",exist_ok=True)
 
@@ -810,11 +728,11 @@ class Service:
 
         if "Enabled" in self.Status():
 
-            Shell([os.getenv("EDITOR","vi"),f"{utils.ROOT}/{self.name}/service.py"],stdout=None)
+            Shell([os.getenv("EDITOR","vi"),f"{ROOT}/{self.name}/service.py"],stdout=None)
 
         else:
 
-            Shell([os.getenv("EDITOR","vi"),f"{utils.ROOT}/{self.name}/.service.py"],stdout=None)
+            Shell([os.getenv("EDITOR","vi"),f"{ROOT}/{self.name}/.service.py"],stdout=None)
 
 
 
@@ -832,7 +750,7 @@ class Service:
 
         
 
-        if os.path.exists(f"{utils.ROOT}/{self.name}/service.py"):
+        if os.path.exists(f"{ROOT}/{self.name}/service.py"):
 
             status+=["Enabled"]
 
@@ -852,7 +770,7 @@ class Service:
 
         else:
 
-            os.rename(f"{utils.ROOT}/{self.name}/.service.py",f"{utils.ROOT}/{self.name}/service.py")
+            os.rename(f"{ROOT}/{self.name}/.service.py",f"{ROOT}/{self.name}/service.py")
 
         
 
@@ -872,7 +790,7 @@ class Service:
 
         else:
 
-            os.rename(f"{utils.ROOT}/{self.name}/service.py",f"{utils.ROOT}/{self.name}/.service.py")
+            os.rename(f"{ROOT}/{self.name}/service.py",f"{ROOT}/{self.name}/.service.py")
 
         
 
@@ -904,27 +822,7 @@ class Service:
 
 
 
-#Initializing some important things
-
-#Flags go before the actual service names
-
-for i in range(len(arguments)):
-
-    if not arguments[i].startswith("--"):
-
-        FLAGS=arguments[:i]
-
-        NAMES=arguments[i:]
-
-        break
-
-
-
-
-
-NAMES=List(NAMES)
-
-
+NAMES=list_services(NAMES)
 
 if NAMES==[]:
 
@@ -952,23 +850,11 @@ for name in NAMES:
 
     
 
-    #Export all service methods to be used in *service.py
-
-    for func in [func for func in dir(Service) if callable(getattr(Service, func)) and not func.startswith('__')]:
-
-        exec(f"{func} = service.{func}")
+    utils.export_methods_globally("service")
 
     
 
-    try:
-
-        result=list(flatten([getattr(service,FUNCTION.title())()]))
-
-    except AttributeError:
-
-        print(f"Command {FUNCTION} doesn't exist!")
-
-        exit()
+    result=utils.execute_class_method(service,FUNCTION)
 
     print_result(result)
 
