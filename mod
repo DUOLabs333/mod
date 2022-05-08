@@ -9,7 +9,7 @@ import re
 import hashlib
 import textwrap
 import itertools
-
+import base64
 MODULES_PATH=os.getenv("MODULES_PATH",f"{os.environ['HOME']}/Modules")
 def split_string_by_char(string,char=':'):
     PATTERN = re.compile(rf'''((?:[^\{char}"']|"[^"]*"|'[^']*')+)''')
@@ -69,8 +69,9 @@ def check_if_module_is_already_compiled(path,module_type):
             return False
 def hash_string(string):
     return hashlib.sha1(string.encode()).hexdigest()
-def compile_file(path,module_type="absolute"):
+def compile_file(path,module_type):
     path=path.strip()
+    pwd=os.path.dirname(path)
     compiled_strings=[]
     with open(path,'r') as file_to_compile:
         for line in file_to_compile:
@@ -86,14 +87,19 @@ def compile_file(path,module_type="absolute"):
                else:
                    submodule_type="absolute"
                
+               submodule_to_include=os.path.expanduser(submodule_to_include)
+               
                if submodule_type=="relative":
-                   submodule_path=os.path.abspath(os.path.expanduser(submodule_to_include))
+                   if os.path.isabs(submodule_to_include):
+                       submodule_path=submodule_to_include
+                   else:
+                       submodule_path=pwd+'/'+submodule_to_include
                else:
-                   submodule_path=os.path.abspath(os.path.expanduser(MODULES_PATH+'/'+submodule_to_include))
+                   submodule_path=os.path.expanduser(MODULES_PATH+'/'+submodule_to_include)
                    
                if not submodule_path.endswith(".pyx"):
+                   #Assume arbitrary data and save it to be used later
                    with open(submodule_path,"rb") as resource:
-                       import base64
                        resource_data=base64.b64encode(resource.read())
                        submodule=f"""
                             import base64
@@ -111,24 +117,18 @@ def compile_file(path,module_type="absolute"):
                    submodule=compile_file(submodule_path,submodule_type)
                
                submodule_function=''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase, k=10))
-               submodule=textwrap.indent(submodule,"     ")
-               submodule_template="""
+               submodule=textwrap.dedent("""
+               
                import types
+               import sys
+               import base64
+               {c}_module=types.ModuleType("{c}")
+               sys.modules["{c}"]={c}_module
+               setattr({c}_module,"__file__",__file__)
+               exec(base64.b64decode({b}).decode("utf-8"),{c}_module.__dict__)
                
-               {submodule_name} = types.SimpleNamespace()
-               def {submodule_function}():
-                    {submodule}
-                    local_variables=locals().copy()
-                    for key in local_variables:
-                       exec(f"{submodule_name}.{{key}} = {{key}}")
+               """).format(a=submodule_function,b=base64.b64encode(submodule.encode("utf-8")),c=submodule_name)
                
-               {submodule_function}()
-               """
-               # Remove leading spaces that is present in the source code
-               submodule_template=textwrap.dedent(submodule_template)
-               
-               # Do this so I won't have to deal with str.format
-               submodule=eval(f"f{repr(submodule_template)}")
                
                #Indent as much as the original include line
                submodule=textwrap.indent(submodule,indentation)
