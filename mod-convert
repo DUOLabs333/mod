@@ -64,8 +64,11 @@ for key in module_dict:
     module_zip.writestr(key,module_dict[key])
 sys.meta_path.append(ZipImporter(module_zip))
 
-globals().update(new_module.__dict__)
+from {a} import *
+
 """
+
+#Maybe loop through sys.modules and remove all keys that are either foo or startswith("foo.")
 with open(exported_file_path,"w+") as f:
     f.write("module_dict={}\n")
     for path in module_files:
