@@ -8,7 +8,11 @@ def convert_path_to_key(path):
     return '["'+path.replace("\\","\\\\")+'"]'
 module_files = [os.path.relpath(os.path.join(dp, f),os.path.dirname(imported_module_path))for dp, dn, filenames in os.walk(imported_module_path) for f in filenames]
 
-exported_file_path=os.path.basename(os.path.normpath(imported_module_path))+".pyx"
+module_name=os.path.basename(os.path.normpath(imported_module_path))
+if len(sys.argv)>2:
+    exported_file_path=sys.argv[2]
+else:
+    exported_file_path=module_name+".pyx"
 
 importer_template="""
 import os
@@ -60,7 +64,7 @@ for key in module_dict:
     module_zip.writestr(key,module_dict[key])
 sys.meta_path.append(ZipImporter(module_zip))
 
-import {a}
+globals().update(new_module.__dict__)
 """
 with open(exported_file_path,"w+") as f:
     f.write("module_dict={}\n")
@@ -69,5 +73,5 @@ with open(exported_file_path,"w+") as f:
             file_in_module_content=file_in_module.read().replace("\\","\\\\").replace('\"', r'\"')
             f.write(f"module_dict{convert_path_to_key(path)}=\"\"\"\n{file_in_module_content}\n\"\"\"\n")
     
-    f.write(importer_template.format(a=exported_file_path[:-4]))
+    f.write(importer_template.format(a=module_name))
     
