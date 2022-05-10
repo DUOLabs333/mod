@@ -64,14 +64,15 @@ for key in module_dict:
     module_zip.writestr(key,module_dict[key])
 
 module_importer=ZipImporter(module_zip)
-sys.meta_path.append(module_importer)
+sys.meta_path.insert(0,module_importer)
 
 from {a} import *
+
+sys.meta_path.remove(module_importer)
 
 for key in sys.modules.copy():
     if key=="{a}" or key.startswith("{a}."):
         del sys.modules[key]
-sys.meta_path.remove(module_importer)
 """
 
 with open(exported_file_path,"w+") as f:

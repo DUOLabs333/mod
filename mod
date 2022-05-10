@@ -137,7 +137,7 @@ def compile_file(path,module_type):
        module_output_name=f"./{pathlib.Path(path).stem}.pyo"
     else:
        module_output_name=f"./{pathlib.Path(path).stem}-{hash_string(path)}.pyo"
-    compiled_strings='\n'.join(compiled_strings)
+    compiled_strings=''.join(compiled_strings)
     with open(module_output_name,"w+") as module_output_file:
        module_output_file.write(compiled_strings)
     return compiled_strings
