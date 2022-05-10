@@ -98,7 +98,7 @@ def compile_file(path,module_type):
                else:
                    submodule_path=os.path.expanduser(MODULES_PATH+'/'+submodule_to_include)
                    
-               if not submodule_path.endswith(".pyx"):
+               if not submodule_path.endswith(".py"):
                    #Assume arbitrary data and save it to be used later
                    with open(submodule_path,"rb") as resource:
                        resource_data=base64.b64encode(resource.read())
@@ -143,11 +143,11 @@ def compile_file(path,module_type):
     return compiled_strings
 
 if function=='build':
-    for pyx in files:
-        compile_file(pyx,"absolute")
+    for py in files:
+        compile_file(py,"absolute")
         if '--make-script' in flags:
-            make_executable(pyx.removesuffix(".pyx")+".pyo")
-            os.rename(pyx.removesuffix(".pyx")+".pyo",pyx.removesuffix(".pyx"))
+            make_executable(py.removesuffix(".py")+".pyo")
+            os.rename(py.removesuffix(".py")+".pyo",py.removesuffix(".py"))
 
 elif function=="clean":
     for item in os.listdir("."):

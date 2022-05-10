@@ -12,7 +12,7 @@ module_name=os.path.basename(os.path.normpath(imported_module_path))
 if len(sys.argv)>2:
     exported_file_path=sys.argv[2]
 else:
-    exported_file_path=module_name+".pyx"
+    exported_file_path=module_name+".py"
 
 importer_template="""
 import os
