@@ -62,13 +62,18 @@ class ZipImporter(object):
 module_zip=zipfile.ZipFile(io.BytesIO(),"w")
 for key in module_dict:
     module_zip.writestr(key,module_dict[key])
-sys.meta_path.append(ZipImporter(module_zip))
+
+module_importer=ZipImporter(module_zip)
+sys.meta_path.append(module_importer)
 
 from {a} import *
 
+for key in sys.modules.copy():
+    if key=="{a}" or key.startswith("{a}."):
+        del sys.modules[key]
+sys.meta_path.remove(module_importer)
 """
 
-#Maybe loop through sys.modules and remove all keys that are either foo or startswith("foo.")
 with open(exported_file_path,"w+") as f:
     f.write("module_dict={}\n")
     for path in module_files:

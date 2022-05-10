@@ -46,10 +46,11 @@ def make_executable(path):
 
 #Check if line is an "include" line
 def check_if_include_line(string):
+    prefix="# < include "
     indentation=''.join(itertools.takewhile(str.isspace,string))
     string=string.strip()
-    if string.startswith("< include") and string.endswith(" >"):
-        string=string.removeprefix("< include").removesuffix(" >")
+    if string.startswith(prefix) and string.endswith(" >"):
+        string=string.removeprefix(prefix).removesuffix(" >")
         return indentation, split_string_by_char(string," ")
     else:
         return '',False
@@ -125,7 +126,7 @@ def compile_file(path,module_type):
                {c}_module=types.ModuleType("{c}")
                #setattr({c}_module,"__file__",__file__)
                exec(base64.b64decode({b}).decode("utf-8"),{c}_module.__dict__)
-               #sys.modules["{c}"]={c}_module
+               sys.modules["{c}"]={c}_module
                """).format(a=submodule_function,b=base64.b64encode(submodule.encode("utf-8")),c=submodule_name)
                
                
