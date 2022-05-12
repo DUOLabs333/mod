@@ -154,6 +154,10 @@ if function=='build':
             os.rename(py.removesuffix(".py")+".pyo",py.removesuffix(".py"))
             if '--no-clean' not in flags:
                 clean()
+        elif '--make-module' in flags:
+            if '--no-clean' not in flags:
+                clean()
+
 
 elif function=="clean":
     clean()
