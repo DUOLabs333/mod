@@ -7,3 +7,5 @@ To include data files, add # < include "data_file" var >. This will add the cont
 To include modules, add # < include module.py >. If module.py does not have quotes around it, it will look in MODULES_ROOT (by default, $HOME/Modules). Otherwise, it will look inside the directory of the script (not $PWD). It will add it as a module of the same name that can be imported.
 
 mod-convert is a tool that takes traditional python modules (ie, ones that are multi-file) and turns them into single-file modules that can be called with mod. However, a note of warning: these are not suitable to be called by ordinary scripts that are not built with mod. If you have such a need, I suggest to use pinliner. Run with mod-convert module_directory.
+
+mod-comment is a tool to automaticlly add #include to 3rd-party module imports in your traditional modules, so that it can be automatically converted with mod-convert.
