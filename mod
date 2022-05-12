@@ -142,17 +142,21 @@ def compile_file(path,module_type):
        module_output_file.write(compiled_strings)
     return compiled_strings
 
+def clean():
+    for item in os.listdir("."):
+        if item.endswith(".pyo"):
+            os.remove("./"+item)
 if function=='build':
     for py in files:
         compile_file(py,"absolute")
         if '--make-script' in flags:
             make_executable(py.removesuffix(".py")+".pyo")
             os.rename(py.removesuffix(".py")+".pyo",py.removesuffix(".py"))
+            if '--no-clean' not in flags:
+                clean()
 
 elif function=="clean":
-    for item in os.listdir("."):
-        if item.endswith(".pyo"):
-            os.remove("./"+item)
+    clean()
                        
                    
                    
