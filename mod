@@ -23,7 +23,9 @@ def extract_arguments():
         print("No function specified!")
         exit()
     arguments=arguments[1:]
-    
+    if arguments[0].startswith("--"):
+        print("No function specified!")
+        exit()
     NAMES=[]
     FLAGS=arguments
     for i in range(len(arguments)):
