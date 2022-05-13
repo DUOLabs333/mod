@@ -22,10 +22,10 @@ def extract_arguments():
     except IndexError:
         print("No function specified!")
         exit()
-    arguments=arguments[1:]
     if arguments[0].startswith("--"):
         print("No function specified!")
         exit()
+    arguments=arguments[1:]
     NAMES=[]
     FLAGS=arguments
     for i in range(len(arguments)):
