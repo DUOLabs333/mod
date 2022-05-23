@@ -55,7 +55,7 @@ def comment_in_file(path,imports):
         data=f.readlines()
         for pair in reversed(imports):
             if pair[0]:
-                data.insert(pair[1]-1,f"{get_indentation_of_string(data[pair[1]-1])}# include < {pair[0]}.py >\n")
+                data.insert(pair[1]-1,f"{get_indentation_of_string(data[pair[1]-1])}# < include {pair[0]}/{pair[0]}.py >\n")
     with open(path,"w") as f:
         f.writelines(data)
     

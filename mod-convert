@@ -6,7 +6,7 @@ imported_module_path=sys.argv[1]
 def convert_path_to_key(path):
     #return '["'+path.replace('/','"]["')+'"]'
     return '["'+path.replace("\\","\\\\")+'"]'
-module_files = [os.path.relpath(os.path.join(dp, f),os.path.dirname(imported_module_path)) for dp, dn, filenames in os.walk(imported_module_path) for f in filenames]
+module_files = [os.path.relpath(os.path.join(dp, f),os.path.dirname(imported_module_path)) for dp, dn, filenames in os.walk(imported_module_path) for f in filenames if f.endswith(".py")]
 
 module_name=os.path.basename(os.path.normpath(imported_module_path))
 if len(sys.argv)>2:
