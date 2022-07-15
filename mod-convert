@@ -20,6 +20,7 @@ import types
 import zipfile
 import sys
 import io
+import json
 
 class ZipImporter(object):
     def __init__(self, zip_file):
@@ -57,6 +58,7 @@ class ZipImporter(object):
         exec(self.zfile.open(filename, 'r').read(),new_module.__dict__)
         new_module.__file__ = filename
         new_module.__loader__ = self
+        new_module.__spec__=json.__spec__ # To satisfy importlib._common.get_package
         return new_module
 
 module_zip=zipfile.ZipFile(io.BytesIO(),"w")
