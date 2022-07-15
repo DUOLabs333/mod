@@ -96,9 +96,9 @@ def compile_file(path,module_type):
                    if os.path.isabs(submodule_to_include):
                        submodule_path=submodule_to_include
                    else:
-                       submodule_path=pwd+'/'+submodule_to_include
+                       submodule_path=os.path.join(pwd,submodule_to_include)
                else:
-                   submodule_path=os.path.expanduser(MODULES_PATH+'/'+submodule_to_include)
+                   submodule_path=os.path.expanduser(os.path.join(MODULES_PATH.submodule_to_include))
                    
                if not submodule_path.endswith(".py"):
                    #Assume arbitrary data and save it to be used later
