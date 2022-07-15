@@ -84,7 +84,7 @@ def compile_file(path,module_type):
                 continue
             else:
                submodule_to_include=include_line[0]
-               if submodule_to_include.startswith('"') and submodule_to_include.endswith('"'):
+               if any(submodule_to_include.startswith(quote) and submodule_to_include.endswith(quote) for quote in ['"',"'"]):
                    submodule_type="relative"
                    submodule_to_include=submodule_to_include[1:-1]
                else:
@@ -117,7 +117,10 @@ def compile_file(path,module_type):
                submodule=check_if_module_is_already_compiled(submodule_path,submodule_type)
                
                if not submodule:
-                   submodule=compile_file(submodule_path,submodule_type)
+                   if os.path.isfile(submodule_path):
+                       submodule=compile_file(submodule_path,submodule_type)
+                   else:
+                       continue
                
                submodule_function=''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase, k=10))
                submodule=textwrap.dedent("""
