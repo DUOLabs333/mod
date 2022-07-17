@@ -18,5 +18,4 @@ shutil.rmtree(os.path.join(args.dir,'bin'),ignore_errors=True)
 for package in args.packages:
     subprocess.run(["mod-comment",os.path.join(args.dir,package)])
     if os.path.isdir(os.path.join(args.dir,package)):
-        print(package)
         subprocess.run(["mod-convert",os.path.join(args.dir,package),os.path.join(args.dir,package+'.py')])
