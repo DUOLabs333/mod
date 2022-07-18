@@ -3,6 +3,8 @@
 import os, sys, zipfile
 imported_module_path=sys.argv[1]
 
+if os.path.isfile(imported_module_path): #If it is a file, ignore it (it is already converted)
+    exit()
 def convert_path_to_key(path):
     #return '["'+path.replace('/','"]["')+'"]'
     return '["'+path.replace(os.sep,'"+os.sep+"')+'"]' #To allow it to work on Windows
@@ -12,7 +14,7 @@ module_name=os.path.basename(os.path.normpath(imported_module_path))
 if len(sys.argv)>2:
     exported_file_path=sys.argv[2]
 else:
-    exported_file_path=module_name+".py"
+    exported_file_path=module_name+".py" #Place in current directory
 
 importer_template="""
 import os

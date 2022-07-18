@@ -76,5 +76,7 @@ def comment_file(path,directory):
         f.writelines(data)
         
 for _ in dirs:
+    if os.path.isfile(_):
+        comment_file(_,os.path.join(_,"..")
     for file in list_all_py_files(_):
         comment_file(os.path.join(_,file),_)
