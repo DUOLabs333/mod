@@ -147,8 +147,11 @@ def compile_file(path,module_type):
        module_output_file.write(compiled_strings)
     return compiled_strings
 
-def clean():
+def clean(file=None):
     for item in os.listdir("."):
+        if file:
+            if item==file:
+                continue
         if item.endswith(".pyo"):
             os.remove("./"+item)
 if function=='build':
@@ -161,7 +164,7 @@ if function=='build':
                 clean()
         elif '--make-module' in flags:
             if '--no-clean' not in flags:
-                clean()
+                clean(os.path.basename(py.removesuffix(".py")+".pyo"))
 
 
 elif function=="clean":
