@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import ast
-from collections import namedtuple
+import collections
 import sys, os, pprint
 import itertools
-Import = namedtuple("Import", ["module", "name", "alias","level","lineno"])
+Import = collections.namedtuple("Import", ["module", "name", "alias","level","lineno"])
 
 dirs=sys.argv[1:]
 
@@ -77,6 +77,6 @@ def comment_file(path,directory):
         
 for _ in dirs:
     if os.path.isfile(_):
-        comment_file(_,os.path.join(_,"..")
+        comment_file(_,_)
     for file in list_all_py_files(_):
         comment_file(os.path.join(_,file),_)

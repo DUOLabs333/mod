@@ -83,6 +83,7 @@ if module_importer in sys.meta_path:
 """
 
 with open(exported_file_path,"w+") as f:
+    f.write("import os\n")
     f.write("module_dict={}\n")
     for path in module_files:
         with open(os.path.join(os.path.dirname(imported_module_path),path),"r") as file_in_module:

@@ -10,6 +10,7 @@ import hashlib
 import textwrap
 import itertools
 import base64
+import types
 MODULES_PATH=os.getenv("MODULES_PATH",f"{os.environ['HOME']}/Modules")
 def split_string_by_char(string,char=':'):
     PATTERN = re.compile(rf'''((?:[^\{char}"']|"[^"]*"|'[^']*')+)''')
@@ -47,105 +48,97 @@ def make_executable(path):
     os.chmod(path, mode)
 
 #Check if line is an "include" line
-def check_if_include_line(string):
+def check_include_line(string,pwd):
     prefix="# < include "
     indentation=''.join(itertools.takewhile(str.isspace,string))
     string=string.strip()
     if string.startswith(prefix) and string.endswith(" >"):
         string=string.removeprefix(prefix).removesuffix(" >")
-        return indentation, split_string_by_char(string," ")
-    else:
-        return '',False
-def check_if_module_is_already_compiled(path,module_type):
-    name=pathlib.Path(path).stem
-    if module_type=="absolute":
-        if os.path.isfile(f"./{name}.pyo"):
-            with open(f"./{name}.pyo") as module:
-                return module.read()
+        string=split_string_by_char(string," ")
+        path=string[0]
+        if any(path.startswith(quote) and path.endswith(quote) for quote in ['"',"'"]):
+            type="relative"
+            path=path[1:-1]
         else:
-            return False
-    else:
-        if os.path.isfile(f"./{name}-{hash_string(path)}.pyo"):
-            with open(f"./{name}-{hash_string(path)}.pyo") as module:
-                return module.read()
+            type="absolute"
+            
+        path=os.path.expanduser(path)
+        
+        if type=="relative":
+            if os.path.isabs(path):
+                path=path
+            else:
+                path=os.path.join(pwd,path)
         else:
-            return False
+            path=os.path.expanduser(os.path.join(MODULES_PATH,path))
+            path=os.path.realpath(path)
+        
+        #Get variable if there is one
+        if len(string)==2:
+            variable=string[1]
+        else:
+            variable=os.path.basename(path).removesuffix(".py")
+            
+        return types.SimpleNamespace(variable=variable,path=path,type=type,indentation=indentation)
+    else:
+        return None
 def hash_string(string):
     return hashlib.sha1(string.encode()).hexdigest()
-def compile_file(path,module_type):
+
+def compile_file(path,header,visited):
     path=path.strip()
     pwd=os.path.dirname(path)
-    compiled_strings=[]
+    lines=[]
+    #header=[] #Join with \n when done
+    #visited={} #If name in visited, ignore
     with open(path,'r') as file_to_compile:
         for line in file_to_compile:
-            indentation, include_line=check_if_include_line(line)
+            include_line=check_include_line(line,pwd)
             if not include_line:
-                compiled_strings.append(line)
+                lines.append(line)
                 continue
             else:
-               submodule_to_include=include_line[0]
-               if any(submodule_to_include.startswith(quote) and submodule_to_include.endswith(quote) for quote in ['"',"'"]):
-                   submodule_type="relative"
-                   submodule_to_include=submodule_to_include[1:-1]
-               else:
-                   submodule_type="absolute"
-               
-               submodule_to_include=os.path.expanduser(submodule_to_include)
-               
-               if submodule_type=="relative":
-                   if os.path.isabs(submodule_to_include):
-                       submodule_path=submodule_to_include
-                   else:
-                       submodule_path=os.path.join(pwd,submodule_to_include)
-               else:
-                   submodule_path=os.path.expanduser(os.path.join(MODULES_PATH.submodule_to_include))
-                   
-               if not submodule_path.endswith(".py"):
+               if not include_line.path.endswith(".py"):
                    #Assume arbitrary data and save it to be used later
-                   with open(submodule_path,"rb") as resource:
+                   with open(include_line.path,"rb") as resource:
                        resource_data=base64.b64encode(resource.read())
                        submodule=f"""
                             import base64
-                            {include_line[1]} = base64.b64decode({resource_data})
+                            {include_line.variable} = base64.b64decode({resource_data})
                        """
                        submodule=textwrap.dedent(submodule)
-                       submodule=textwrap.indent(submodule,indentation)
-                       compiled_strings.append(submodule)
+                       submodule=textwrap.indent(submodule,include_line.indentation)
+                       lines.append(submodule)
                    continue
-               submodule_name=pathlib.Path(submodule_path).stem
-               submodule_path=os.path.realpath(submodule_path)
-               submodule=check_if_module_is_already_compiled(submodule_path,submodule_type)
                
-               if not submodule:
-                   if os.path.isfile(submodule_path):
-                       submodule=compile_file(submodule_path,submodule_type)
-                   else:
-                       continue
-               
-               submodule_function=''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase, k=10))
-               submodule=textwrap.dedent("""
-               
-               import types
-               import sys
-               import base64
-               {c}_module=types.ModuleType("{c}")
-               #setattr({c}_module,"__file__",__file__)
-               exec(base64.b64decode({b}).decode("utf-8"),{c}_module.__dict__)
-               sys.modules["{c}"]={c}_module
-               """).format(a=submodule_function,b=base64.b64encode(submodule.encode("utf-8")),c=submodule_name)
-               
-               
-               #Indent as much as the original include line
-               submodule=textwrap.indent(submodule,indentation)
-               compiled_strings.append(submodule)
-    if module_type == "absolute":
-       module_output_name=f"./{pathlib.Path(path).stem}.pyo"
-    else:
-       module_output_name=f"./{pathlib.Path(path).stem}-{hash_string(path)}.pyo"
-    compiled_strings=''.join(compiled_strings)
+               if os.path.isfile(include_line.path): #Skip if file doesn't exist
+                   compile_file(include_line.path,lines,visited)
+               else:
+                   continue
+               if include_line.path in visited:
+                   continue #Don't have duplicates
+               else:
+                   with open(include_line.path,"r") as f:
+                       submodule_function=''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase, k=10))
+                       submodule=textwrap.dedent("""
+                       
+                       import types
+                       import sys
+                       import base64
+                       {c}_module=types.ModuleType("{c}")
+                       #setattr({c}_module,"__file__",__file__)
+                       exec(base64.b64decode({b}).decode("utf-8"),{c}_module.__dict__)
+                       sys.modules["{c}"]={c}_module
+                       """).format(a=submodule_function,b=base64.b64encode(f.read().encode("utf-8")),c=include_line.variable)
+                       
+                       header.append(submodule)
+                   visited[include_line.path]=None
+                   
+    module_output_name=f"./{pathlib.Path(path).stem}.pyo"
+    lines=''.join(lines)
     with open(module_output_name,"w+") as module_output_file:
-       module_output_file.write(compiled_strings)
-    return compiled_strings
+        module_output_file.write(''.join(header))
+        module_output_file.write(lines)
 
 def clean(file=None):
     for item in os.listdir("."):
@@ -156,7 +149,7 @@ def clean(file=None):
             os.remove("./"+item)
 if function=='build':
     for py in files:
-        compile_file(py,"absolute")
+        compile_file(py,[],{})
         if '--make-script' in flags:
             make_executable(py.removesuffix(".py")+".pyo")
             os.rename(py.removesuffix(".py")+".pyo",py.removesuffix(".py"))
