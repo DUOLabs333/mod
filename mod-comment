@@ -58,7 +58,7 @@ def get_first_line_of_file(path):
         for node in ast.iter_child_nodes(root):
             line=node.lineno
             break
-    return line
+    return line-1
         
 def comment_file(path,directory):
     import_string=""
@@ -71,7 +71,7 @@ def comment_file(path,directory):
     with open(path,"r") as f:
         data=f.readlines()
         if len(modules)!=0:
-            data.insert(get_first_line_of_file(path)-1,import_string)
+            data.insert(get_first_line_of_file(path),import_string)
     with open(path,"w") as f:
         f.writelines(data)
         

@@ -11,6 +11,7 @@ import textwrap
 import itertools
 import base64
 import types
+import ast 
 MODULES_PATH=os.getenv("MODULES_PATH",f"{os.environ['HOME']}/Modules")
 def split_string_by_char(string,char=':'):
     PATTERN = re.compile(rf'''((?:[^\{char}"']|"[^"]*"|'[^']*')+)''')
@@ -47,6 +48,20 @@ def make_executable(path):
     mode |= (mode & 0o444) >> 2    # copy R bits to X
     os.chmod(path, mode)
 
+def get_first_line_of_file(path):
+    line=None
+    with open(path) as fh:        
+       root = ast.parse(fh.read(), path)
+    for node in ast.iter_child_nodes(root): #This is just to make sure that no imports come before __future__imports
+        if isinstance(node, ast.ImportFrom) and node.module=="__future__":
+            line=node.end_lineno+1
+    
+    if not line:
+        for node in ast.iter_child_nodes(root):
+            line=node.lineno
+            break
+    return line-1
+    
 #Check if line is an "include" line
 def check_include_line(string,pwd):
     prefix="# < include "
@@ -85,7 +100,7 @@ def check_include_line(string,pwd):
 def hash_string(string):
     return hashlib.sha1(string.encode()).hexdigest()
 
-def compile_file(path,header,visited):
+def compile_file(path,header,visited,write):
     path=path.strip()
     pwd=os.path.dirname(path)
     lines=[]
@@ -112,7 +127,7 @@ def compile_file(path,header,visited):
                    continue
                
                if os.path.isfile(include_line.path): #Skip if file doesn't exist
-                   compile_file(include_line.path,lines,visited)
+                   compile_file(include_line.path,header,visited,write=False)
                else:
                    continue
                if include_line.path in visited:
@@ -135,10 +150,10 @@ def compile_file(path,header,visited):
                    visited[include_line.path]=None
                    
     module_output_name=f"./{pathlib.Path(path).stem}.pyo"
-    lines=''.join(lines)
-    with open(module_output_name,"w+") as module_output_file:
-        module_output_file.write(''.join(header))
-        module_output_file.write(lines)
+    if write:
+        lines.insert(get_first_line_of_file(path),''.join(header))
+        with open(module_output_name,"w+") as module_output_file:
+            module_output_file.write(''.join(lines))
 
 def clean(file=None):
     for item in os.listdir("."):
@@ -149,7 +164,7 @@ def clean(file=None):
             os.remove("./"+item)
 if function=='build':
     for py in files:
-        compile_file(py,[],{})
+        compile_file(py,[],{},write=True)
         if '--make-script' in flags:
             make_executable(py.removesuffix(".py")+".pyo")
             os.rename(py.removesuffix(".py")+".pyo",py.removesuffix(".py"))
