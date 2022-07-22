@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+import ast
+from collections import namedtuple
+import sys, os, pprint
+import itertools
+Import = namedtuple("Import", ["module", "name", "alias","level","lineno"])
+
+dirs=sys.argv[1:]
+
+def list_all_py_files(directory):
+    return [os.path.relpath(os.path.join(dp, f),directory) for dp, dn, filenames in os.walk(directory) for f in filenames if f.endswith(".py")]
+
+def get_imports(path):
+    with open(path) as fh:        
+       root = ast.parse(fh.read(), path)
+
+    for node in ast.walk(root):
+        if isinstance(node, ast.Import):
+            module = []
+        elif isinstance(node, ast.ImportFrom):
+            if node.module is None:
+                module=node.module
+            else:
+                module = node.module.split('.')
+        else:
+            continue
+
+        n=node.names[0]
+        yield Import(module, n.name.split('.'), n.asname,node.level if isinstance(node, ast.ImportFrom) else 0,node.lineno)
+
+def get_module_name_and_lineno(Import,directory):
+    module=None
+    lineno=Import.lineno
+    if Import.level>0:
+        module=None #Relative import
+    else:
+        #Absolute import
+        if Import.module==[]:
+            module=Import.name[0]
+        else:
+            module=Import.module[0]
+        
+        if module in sys.stdlib_module_names:
+            module=None #Module is in stdlib, so there's no reason to add them
+        
+        if module==os.path.basename(directory):
+            module=None #Module is the same as the global module, so will just lead to recursive behavior
+    return [module,lineno]
+
+def get_indentation_of_string(string):
+    return ''.join(itertools.takewhile(str.isspace,string))
+    
+def comment_in_file(path,imports):
+    with open(path,"r") as f:
+        data=f.readlines()
+        for pair in reversed(imports):
+            if pair[0]:
+                data.insert(pair[1]-1,f"{get_indentation_of_string(data[pair[1]-1])}# < include {pair[0]}/{pair[0]}.py >\n")
+    with open(path,"w") as f:
+        f.writelines(data)
+    
+def get_all_lines_of_imports(directory):
+    files=list_all_py_files(directory)
+    imports={}
+    for file_ in files:
+        imports[file_]=[]
+        for import_ in get_imports(os.path.join(directory,file_)):
+            imports[file_].append(get_module_name_and_lineno(import_,directory))
+    return imports
+def comment_all_files_in_directory(directory):
+    imports=get_all_lines_of_imports(directory)
+    
+    for key in imports:
+        comment_in_file(os.path.join(directory,key),imports[key])
+    
+for _ in dirs:
+    comment_all_files_in_directory(_)

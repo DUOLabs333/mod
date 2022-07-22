@@ -180,4 +180,7 @@ elif function=="clean":
                        
                    
                    
-               
+"""              
+Notes:
+In the future, maybe add optimization levels --- for most people, just adding modules to the top of the file works fine. This is the highest optimization level, and is the default. However, maybe to be on the safe side, you want to add the code whenever it is mentioned, even if it is copied several times. In that case, do the old method of having intermediate files.
+"""
