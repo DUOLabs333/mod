@@ -24,19 +24,18 @@ import sys
 import io
 import json
 
-class ZipImporter(object):
-    def __init__(self, zip_file):
-        self.zfile = zip_file
-        self._paths = [x.filename for x in self.zfile.filelist]
+class DictImporter(object):
+    def __init__(self, _dict):
+        self.dict = _dict
         
     def _mod_to_paths(self, fullname):
         # get the python module name
         py_filename = fullname.replace(".", os.sep) + ".py"
         # get the filename if it is a package/subpackage
         py_package = fullname.replace(".", os.sep) + os.sep + "__init__.py"
-        if py_filename in self._paths:
+        if py_filename in self.dict:
             return py_filename
-        elif py_package in self._paths:
+        elif py_package in self.dict:
             return py_package
         else:
             return None
@@ -57,17 +56,14 @@ class ZipImporter(object):
             new_module.__package__ = fullname
         else:
             new_module.__package__ = fullname.rpartition('.')[0]
-        exec(self.zfile.open(filename, 'r').read(),new_module.__dict__)
+        
+        exec(self.dict[filename],new_module.__dict__)
         new_module.__file__ = filename
         new_module.__loader__ = self
         new_module.__spec__=json.__spec__ # To satisfy importlib._common.get_package
         return new_module
 
-module_zip=zipfile.ZipFile(io.BytesIO(),"w")
-for key in module_dict:
-    module_zip.writestr(key,module_dict[key])
-
-module_importer=ZipImporter(module_zip)
+module_importer=DictImporter(module_dict)
 sys.meta_path.insert(0,module_importer)
 
 #from {a} import *
