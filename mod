@@ -6,7 +6,7 @@ import os
 parser = argparse.ArgumentParser(description='Bundle a Python application')
 
 parser.add_argument(dest='action',metavar='VERB',type=str,help='Action mod should take')
-parser.add_argument(dest='root', metavar='FOLDER', type=str, help='Root of folder',nargs='?', default='build')
+parser.add_argument(dest='root', metavar='FOLDER', type=str, help='Root of folder',nargs='?', default='.')
 parser.add_argument(dest='file_name',metavar='APP',type=str,nargs='?',default=None)
 args = parser.parse_args()
 
@@ -37,8 +37,8 @@ def build():
     
         files=[os.path.join(dp, f) for dp, dn, filenames in os.walk(os.path.join(project_root,real_folder)) for f in filenames]
         
-        files=[os.path.relpath(_,os.path.join(project_name,real_folder)) for _ in files]
-    
+        files=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in files]
+        
         for file in files:
             file_zip.write(os.path.join(project_root,real_folder,file),arcname=os.path.join(zip_folder,file))
     
@@ -85,4 +85,4 @@ def build():
     write_function_to_file(main_py_template,"__main__.py")
     write_function_to_file(init_py_template,"__init__.py")
 
-globals[args.action]()
+globals()[args.action]()
