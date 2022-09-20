@@ -35,7 +35,7 @@ def build():
             zip_folder=real_folder
         
     
-        files=[os.path.join(dp, f) for dp, dn, filenames in os.walk(os.path.join(project_root,real_folder)) for f in filenames]
+        files=[os.path.join(dp, f) for dp, dn, filenames in os.walk(os.path.join(project_root,real_folder),followlinks=True) for f in filenames]
         
         files=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in files]
         
@@ -57,7 +57,7 @@ def build():
         def new_open(path,mode='r'):
             path=os.path.abspath(path)
             if path.startswith(zip_path) or path.startswith(zip_path+os.sep):
-                path=os.path.relpath(path,zip_app)
+                path=os.path.relpath(path,zip_path)
                 return Zipfile.open(path)
             else:
                 return old_open(path,mode)
