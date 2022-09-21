@@ -68,7 +68,6 @@ def build():
                 mode=kwargs['mode']
             else:
                 mode='r'
-                return Zipfile.open(path,mode=mode)
             if not isinstance(path,int):
                 path=os.path.abspath(path)
             if not isinstance(path,int) and path!=zip_path and path.startswith(zip_path+os.sep):
