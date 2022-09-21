@@ -45,44 +45,59 @@ def build():
     add_folder_to_zip("_vendor")
     add_folder_to_zip("src","")
     
-    def main_py_template():
+    def template():
         import os, sys
+        
+        zip_path=os.path.abspath(os.path.dirname(__file__))
+        sys.path.insert(0,os.path.join(zip_path,"_vendor"))
+        
         import zipfile
         import copy
         import builtins
-        zip_path=os.path.dirname(__file__)
+        
+        
         Zipfile=zipfile.ZipFile(zip_path)
         
         old_open=copy.copy(open)
-        def new_open(path,mode='r'):
-            path=os.path.abspath(path)
-            if path.startswith(zip_path) or path.startswith(zip_path+os.sep):
-                path=os.path.relpath(path,zip_path)
-                return Zipfile.open(path)
+        
+        def new_open(*args,**kwargs):
+            path=args[0]
+            if len(args)>1:
+                mode=args[1]
+            elif 'mode' in kwargs:
+                mode=kwargs['mode']
             else:
-                return old_open(path,mode)
+                mode='r'
+            if not isinstance(path,int):
+                path=os.path.abspath(path)
+            if not isinstance(path,int) and path!=zip_path and path.startswith(zip_path+os.sep):
+                path=os.path.relpath(path,zip_path)
+                return Zipfile.open(path,mode=mode)
+            else:
+                return old_open(*args,**kwargs)
         
         builtins.open=new_open
         
-        sys.path.insert(0,os.path.join(zip_path,"_vendor"))
+        import io
+        io.open=new_open
         
+        import importlib
+        import pathlib
+        importlib.reload(pathlib)
+
         import NAME
         
         if __name__=="__main__":
             NAME.main()
-    
-    def init_py_template():
-        import NAME
-        globals().update(NAME)
+        else:
+             globals().update(NAME)
         
-    def write_function_to_file(function,file):
-        import inspect
-        import textwrap
-        source=inspect.getsourcelines(function)[0][1:]
-        source=textwrap.dedent("".join(source).replace("NAME",project_name))
-        file_zip.writestr(file,source)
+    import inspect
+    import textwrap
+    source=inspect.getsourcelines(template)[0][1:]
+    source=textwrap.dedent("".join(source).replace("NAME",project_name))
+    file_zip.writestr("__main__.py",source)
+    file_zip.writestr("__init__.py",source)
     
-    write_function_to_file(main_py_template,"__main__.py")
-    write_function_to_file(init_py_template,"__init__.py")
 
 globals()[args.action]()
