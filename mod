@@ -54,12 +54,12 @@ def build():
         import zipfile
         import copy
         import builtins
-        
+        import importlib
         
         Zipfile=zipfile.ZipFile(zip_path)
         
-        old_open=copy.copy(open)
-        
+        old_open=open
+        import pathlib
         def new_open(*args,**kwargs):
             path=args[0]
             if len(args)>1:
@@ -68,6 +68,7 @@ def build():
                 mode=kwargs['mode']
             else:
                 mode='r'
+                return Zipfile.open(path,mode=mode)
             if not isinstance(path,int):
                 path=os.path.abspath(path)
             if not isinstance(path,int) and path!=zip_path and path.startswith(zip_path+os.sep):
@@ -75,22 +76,21 @@ def build():
                 return Zipfile.open(path,mode=mode)
             else:
                 return old_open(*args,**kwargs)
+                
+        new_open=staticmethod(new_open) #Allows for use in functions
         
         builtins.open=new_open
-        
         import io
         io.open=new_open
         
-        import importlib
-        import pathlib
-        importlib.reload(pathlib)
+        importlib.reload(sys.modules['pathlib']) #So it picks up new io
 
         import NAME
         
         if __name__=="__main__":
             NAME.main()
         else:
-             globals().update(NAME)
+             globals().update(NAME.__dict__)
         
     import inspect
     import textwrap
