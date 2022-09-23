@@ -37,7 +37,7 @@ def build():
     
         files=[os.path.join(dp, f) for dp, dn, filenames in os.walk(os.path.join(project_root,real_folder),followlinks=True) for f in filenames]
         
-        files=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in files]
+        files=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in files if os.path.splitext(_)[1] not in [".pyc",".whl"] and not os.path.dirname(_).endswith(".dist-info")]
         
         for file in files:
             file_zip.write(os.path.join(project_root,real_folder,file),arcname=os.path.join(zip_folder,file))
@@ -60,6 +60,8 @@ def build():
         
         old_open=open
         import pathlib
+        
+        @staticmethod
         def new_open(*args,**kwargs):
             path=args[0]
             if len(args)>1:
@@ -76,7 +78,7 @@ def build():
             else:
                 return old_open(*args,**kwargs)
                 
-        new_open=staticmethod(new_open) #Allows for use in functions
+        #new_open=staticmethod(new_open) #Allows for use in functions
         
         builtins.open=new_open
         import io
