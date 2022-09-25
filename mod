@@ -7,9 +7,9 @@ import py_compile
 
 parser = argparse.ArgumentParser(description='Bundle a Python application')
 
-parser.add_argument(dest='action',metavar='VERB',type=str,help='Action mod should take')
-parser.add_argument(dest='root', metavar='FOLDER', type=str, help='Root of folder',nargs='?', default='.')
-parser.add_argument(dest='file_name',metavar='APP',type=str,nargs='?',default=None)
+parser.add_argument(dest='action',metavar='ACTION',type=str,help='Action mod should take')
+parser.add_argument(dest='root', metavar='PROJECT', type=str, help='Project path',nargs='?', default='.')
+parser.add_argument('--output',metavar='OUTPUT FILE',dest='file_name',type=str,default=None)
 args = parser.parse_args()
 
 project_root=os.path.abspath(args.root)
