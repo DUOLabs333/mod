@@ -2,7 +2,7 @@
 
 import argparse
 import zipfile
-import os
+import os, shutil
 import py_compile
 
 parser = argparse.ArgumentParser(description='Bundle a Python application')
@@ -45,6 +45,14 @@ def build():
             input_file=os.path.join(project_root,real_folder,file)
             output_file=os.path.join(zip_folder,file)
             
+            if file.endswith(".so") or ".so." in file:
+                os.makedirs(os.path.join(project_root,"extensions",os.path.dirname(file)),exist_ok=True)
+                if file.endswith(".so"):
+                    shutil.copyfile(input_file,os.path.join(project_root,"extensions",file.split(".")[0]+".so"))
+                else:
+                    shutil.copyfile(input_file,os.path.join(project_root,"extensions",file))
+                continue
+                
             #Compile py to pyc to start up faster (otherwise, zipimport will compile all the files again)
             if file.endswith(".py"):
                 py_compile.compile(input_file,cfile="temp.pyc")
@@ -68,12 +76,25 @@ def build():
         import copy
         import builtins
         import importlib
-        
+        from importlib import abc
+        import types
         Zipfile=zipfile.ZipFile(zip_path)
         
+        def is_path_in_zipfile(path):
+            result=[]
+            if not isinstance(path,int):
+                path=os.path.abspath(path)
+                
+            if not isinstance(path,int) and path!=zip_path and path.startswith(zip_path+os.sep):
+                path=os.path.relpath(path,zip_path)
+                result.append(True) #Whether path is in zipfile
+            else:
+                result.append(False)
+                
+            result.append(path)
+            return result
+            
         old_open=open
-        import pathlib
-        
         @staticmethod #Allows for use in classes
         def new_open(*args,**kwargs):
             path=args[0]
@@ -83,19 +104,76 @@ def build():
                 mode=kwargs['mode']
             else:
                 mode='r'
-            if not isinstance(path,int):
-                path=os.path.abspath(path)
-            if not isinstance(path,int) and path!=zip_path and path.startswith(zip_path+os.sep):
-                path=os.path.relpath(path,zip_path)
-                return Zipfile.open(path,mode=mode)
-            else:
+                
+            path=is_path_in_zipfile(path)
+            if not path[0]:
                 return old_open(*args,**kwargs)
+            else:
+                if mode.endswith("b"):
+                    return zipfile.Path(Zipfile,path[1]).open(mode)
+                else:
+                    return Zipfile.open(path[1],mode)
         
         builtins.open=new_open
         import io
         io.open=new_open
-        
         importlib.reload(sys.modules['pathlib']) #So it picks up new io
+        
+        
+        
+        old_makedirs=os.makedirs
+        @staticmethod
+        def new_makedirs(*args,**kwargs):
+            path=args[0]
+            path=is_path_in_zipfile(path)
+            
+            if not path[0]:
+                return old_makedirs(*args,**kwargs)
+            else:
+                return old_makedirs(path[1],exist_ok=True)
+        #os.makedirs=new_makedirs
+        
+        old_listdir=os.listdir
+        @staticmethod
+        def new_listdir(*args,**kwargs):
+            path=args[0]
+            path=is_path_in_zipfile(path)
+            
+            if not path[0]:
+                return old_listdir(*args,**kwargs)
+            else:
+                return [os.path.relpath(_,path[1]) for _ in Zipfile.namelist() if _.startswith(path[1]) ]
+        #os.listdir=new_listdir
+        
+        old_stat=os.stat
+        @staticmethod
+        def new_stat(*args,**kwargs):
+            path=args[0]
+            path=is_path_in_zipfile(path)
+            if not path[0]:
+                return old_stat(*args,**kwargs)
+            else:
+                if path[1] in Zipfile.namelist():
+                    return os.stat(zip_path)
+                else:
+                    raise FileNotFoundError
+        os.stat=new_stat
+        
+        #Finds C extensions in 'extensions' folder and returns it 
+        class ExtensionLoader(importlib.abc.Loader):
+            def create_module(spec):
+                self.spec=spec
+                return importlib.util.module_from_spec(spec)
+            
+            def exec_module(module):
+                self.spec.loader.exec_module(module)
+        
+        class ExtensionFinder():
+            def find_spec(self,fullname, path, target=None):
+                extension_path=os.path.join(os.path.dirname(zip_path),"extensions",fullname.replace(".",os.sep)+".so")
+                if os.path.exists(extension_path):
+                    return importlib.util.spec_from_file_location(fullname,extension_path)
+        sys.meta_path.append(ExtensionFinder())
         
         def main():
             #Switch to actual module
@@ -114,8 +192,12 @@ def build():
     def main_template(): #Just runs __init__.py
         import os,sys
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__)))
-        import NAME
-        NAME.main()  
+        import traceback
+        try:
+            import NAME
+            NAME.main()
+        except:
+            traceback.print_exc(file=open(os.getcwd()+'/test.txt','w+'))
     
     def write_function_to_zip(function,file):
         import inspect
