@@ -192,12 +192,8 @@ def build():
     def main_template(): #Just runs __init__.py
         import os,sys
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__)))
-        import traceback
-        try:
-            import NAME
-            NAME.main()
-        except:
-            traceback.print_exc(file=open(os.getcwd()+'/test.txt','w+'))
+        import NAME
+        NAME.main()
     
     def write_function_to_zip(function,file):
         import inspect
