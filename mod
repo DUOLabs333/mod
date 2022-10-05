@@ -110,7 +110,7 @@ def build():
                 return old_open(*args,**kwargs)
             else:
                 if mode.endswith("b"):
-                    return zipfile.Path(Zipfile,path[1]).open(mode)
+                    return zipfile.Path(Zipfile,path[1]).open(mode,line_buffering=True)
                 else:
                     return Zipfile.open(path[1],mode)
         
