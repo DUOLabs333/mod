@@ -55,11 +55,16 @@ def build():
                 
             #Compile py to pyc to start up faster (otherwise, zipimport will compile all the files again)
             if file.endswith(".py"):
-                py_compile.compile(input_file,cfile="temp.pyc")
+                
+                py_compile.compile(input_file,cfile="temp.pyc",dfile=os.path.join("$ROOT$",zip_folder,file)) #Possibly replace this with joining the path with r'/\' for dfile. This is so that tracebacks will look at the correct .py file instead of finding nothing
                 input_file="temp.pyc"
                 output_file=output_file[:-3]+".pyc"
             file_zip.write(input_file,arcname=output_file)
     
+            if file.endswith(".py"): #Add the py files for tracebacks
+                input_file=os.path.join(project_root,real_folder,file)
+                output_file=os.path.join(zip_folder,file)
+                file_zip.write(input_file,arcname=output_file)
     add_folder_to_zip("_vendor",os.path.join(project_name,"_vendor"))
     add_folder_to_zip("src",project_name)
     
@@ -81,6 +86,7 @@ def build():
         Zipfile=zipfile.ZipFile(zip_path)
         
         def is_path_in_zipfile(path):
+            #Maybe support parameter mode, so redirect to empty file if writing. Make wrapper around common os functions all just getting new file and passing it in.
             result=[]
             if not isinstance(path,int):
                 path=os.path.abspath(path)
@@ -110,7 +116,7 @@ def build():
                 return old_open(*args,**kwargs)
             else:
                 if mode.endswith("b"):
-                    return zipfile.Path(Zipfile,path[1]).open(mode,line_buffering=True)
+                    return zipfile.Path(Zipfile,path[1]).open(mode)
                 else:
                     return Zipfile.open(path[1],mode)
         
@@ -118,6 +124,7 @@ def build():
         import io
         io.open=new_open
         importlib.reload(sys.modules['pathlib']) #So it picks up new io
+        importlib.reload(sys.modules['tokenize']) #So it picks up new io
         
         
         
@@ -159,6 +166,26 @@ def build():
                     raise FileNotFoundError
         os.stat=new_stat
         
+        old_unmarshal=sys.modules['zipimport']._unmarshal_code
+        def new_unmarshal(*args,**kwargs): #Rewrite co_filename to match path inside zip for tracebacks
+            code=old_unmarshal(*args,**kwargs)
+            def _overwrite_co_filename(_code):
+                filename=_code.co_filename
+                if filename.startswith("$ROOT$"):
+                    filename=filename.replace("$ROOT$",zip_path,1)
+                else:
+                    return _code
+                _code=_code.replace(co_filename=filename.replace("$ROOT$",zip_path,1))
+                consts=list(_code.co_consts)
+                for i,const in enumerate(consts):
+                    if isinstance(const,types.CodeType):
+                        consts[i]=_overwrite_co_filename(const)
+                _code=_code.replace(co_consts=tuple(consts))
+                return _code
+            code=_overwrite_co_filename(code)
+            return code
+        sys.modules['zipimport']._unmarshal_code=new_unmarshal
+
         #Finds C extensions in 'extensions' folder and returns it 
         class ExtensionLoader(importlib.abc.Loader):
             def create_module(spec):
@@ -190,8 +217,11 @@ def build():
         globals().update(NAME.__dict__)
     
     def main_template(): #Just runs __init__.py
-        import os,sys
+        import os,sys,traceback
+        sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working
+        
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__)))
+        
         import NAME
         NAME.main()
     
