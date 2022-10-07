@@ -9,7 +9,9 @@ parser = argparse.ArgumentParser(description='Bundle a Python application')
 
 parser.add_argument(dest='action',metavar='ACTION',type=str,help='Action mod should take')
 parser.add_argument(dest='root', metavar='PROJECT', type=str, help='Project path',nargs='?', default='.')
-parser.add_argument('--output',metavar='OUTPUT FILE',dest='file_name',type=str,default=None)
+parser.add_argument('-o','--output',metavar='OUTPUT FILE',dest='file_name',type=str,default=None)
+parser.add_argument('--extensions','--ext',metavar='EXTENSIONS',dest='extensions',const=True,default=False,help='Whether to allow the importing of C extensions (not needed if C extensions are optional')
+
 args = parser.parse_args()
 
 project_root=os.path.abspath(args.root)
@@ -20,6 +22,8 @@ if not args.file_name:
     args.file_name=os.path.join(project_root,project_name)
     
 file_name=args.file_name
+
+extensions=args.extensions
 def build():
     
     file_zip=open(file_name,"w+")
@@ -45,13 +49,14 @@ def build():
             input_file=os.path.join(project_root,real_folder,file)
             output_file=os.path.join(zip_folder,file)
             
-            if file.endswith(".so") or ".so." in file:
-                os.makedirs(os.path.join(project_root,"extensions",os.path.dirname(file)),exist_ok=True)
-                if file.endswith(".so"):
-                    shutil.copyfile(input_file,os.path.join(project_root,"extensions",file.split(".")[0]+".so"))
-                else:
-                    shutil.copyfile(input_file,os.path.join(project_root,"extensions",file))
-                continue
+            if extensions:
+                if file.endswith(".so") or ".so." in file:
+                    os.makedirs(os.path.join(project_root,"extensions",os.path.dirname(file)),exist_ok=True)
+                    if file.endswith(".so"):
+                        shutil.copyfile(input_file,os.path.join(project_root,"extensions",file.split(".")[0]+".so"))
+                    else:
+                        shutil.copyfile(input_file,os.path.join(project_root,"extensions",file))
+                    continue
                 
             #Compile py to pyc to start up faster (otherwise, zipimport will compile all the files again)
             if file.endswith(".py"):
@@ -218,7 +223,7 @@ def build():
     
     def main_template(): #Just runs __init__.py
         import os,sys,traceback
-        sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working
+        sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working. Python's C traceback doesn't work, but the Python traceback module does, so use that.
         
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__)))
         
