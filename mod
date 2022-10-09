@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(description='Bundle a Python application')
 parser.add_argument(dest='action',metavar='ACTION',type=str,help='Action mod should take')
 parser.add_argument(dest='root', metavar='PROJECT', type=str, help='Project path',nargs='?', default='.')
 parser.add_argument('-o','--output',metavar='OUTPUT FILE',dest='file_name',type=str,default=None)
-parser.add_argument('--extensions','--ext',metavar='EXTENSIONS',dest='extensions',const=True,default=False,help='Whether to allow the importing of C extensions (not needed if C extensions are optional')
+parser.add_argument('--extensions','--ext',action='store_const',metavar='EXTENSIONS',dest='extensions',const=True,default=False,help='Whether to allow the importing of C extensions (not needed if C extensions are optional')
 
 args = parser.parse_args()
 
