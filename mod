@@ -14,69 +14,75 @@ parser.add_argument('--extensions','--ext',action='store_const',metavar='EXTENSI
 
 args = parser.parse_args()
 
-project_root=os.path.abspath(args.root)
+project_root=os.path.abspath(args.root) #Path of the project directory
 
-project_name=os.path.relpath(project_root,os.path.dirname(project_root))
+project_name=os.path.relpath(project_root,os.path.dirname(project_root)) #Name of the main module in the project. Defined as the name of the project folder (last part of its path)
 
 if not args.file_name:
-    args.file_name=os.path.join(project_root,project_name)
+    args.file_name=os.path.join(project_root,project_name) #By default, the output file has the same name as the project_name, and will be in the project directory 
     
 file_name=args.file_name
 
-extensions=args.extensions
+extensions=args.extensions #Whether to support C extensions. By default, it will not
+
 def build():
     
-    file_zip=open(file_name,"w+")
-    file_zip.write("#! /usr/bin/env python\n")
-    file_zip.close()
+    output_file=open(file_name,"w+")
+    output_file.write("#! /usr/bin/env python\n") #Add shebang to support running without prefixing python
+    output_file.close() #Can't open file with zipfile without closing the file first
     
     def make_executable(path):
         mode = os.stat(path).st_mode
         mode |= (mode & 0o444) >> 2    # copy R bits to X
         os.chmod(path, mode)
-    make_executable(file_name)
-    file_zip=zipfile.ZipFile(file_name,'a')
-    def add_folder_to_zipapp(real_folder,zip_folder=None):
-        if zip_folder is None:
-            zip_folder=real_folder
         
+    make_executable(file_name) #So you can actually run it
     
-        files=[os.path.join(dp, f) for dp, dn, filenames in os.walk(os.path.join(project_root,real_folder),followlinks=True) for f in filenames]
+    output_file=zipfile.ZipFile(file_name,'a') #Append, as otherwise, it will overwrite the shebang
+    
+    def add_folder_to_zipapp(real_folder,zip_folder=None): #real_folder is the directory in the project root, and zip_folder is where the folder the file should be in the zip
+    
+        if zip_folder is None:
+            zip_folder=real_folder #Default to using real_folder
         
-        files=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in files if os.path.splitext(_)[1] not in [".pyc",".whl"] and not os.path.dirname(_).endswith(".dist-info")] #Unneccessary
+        files=[os.path.join(dp, f) for dp, dn, filenames in os.walk(os.path.join(project_root,real_folder),followlinks=True) for f in filenames] #Get all files in real_folder
+        
+        files=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in files if os.path.splitext(_)[1] not in [".pyc",".whl"] and not os.path.dirname(_).endswith(".dist-info")] #Remove unneccessary folders and files
         
         for file in files:
-            input_file=os.path.join(project_root,real_folder,file)
-            output_file=os.path.join(project_name,zip_folder,file)
+            _input_file=os.path.join(project_root,real_folder,file)
+            _output_file=os.path.join(project_name,zip_folder,file)
             
-            if extensions:
+            if extensions: #Make _extensions folder to put Cython modules in, according to the paths 
                 if file.endswith(".so") or ".so." in file:
                     os.makedirs(os.path.join(project_root,"_extensions",zip_folder,os.path.dirname(file)),exist_ok=True)
-                    shutil.copyfile(input_file,os.path.join(project_root,"_extensions",zip_folder,file))
+                    shutil.copyfile(_input_file,os.path.join(project_root,"_extensions",zip_folder,file))
+                    continue
                 
             #Compile py to pyc to start up faster (otherwise, zipimport will compile all the files again)
             if file.endswith(".py"):
                 
-                py_compile.compile(input_file,cfile="temp.pyc",dfile=os.path.join("$ROOT$",project_name,zip_folder,file)) #Possibly replace this with joining the path with r'/\' for dfile. This is so that tracebacks will look at the correct .py file instead of finding nothing
-                input_file="temp.pyc"
-                output_file=output_file[:-3]+".pyc"
-            file_zip.write(input_file,arcname=output_file)
+                py_compile.compile(_input_file,cfile="temp.pyc",dfile=os.path.join("$ROOT$",project_name,zip_folder,file)) #Possibly replace this with joining the path with r'/\' for dfile. This is so that tracebacks will look at the correct .py file instead of finding nothing
+                
+                _input_file="temp.pyc"
+                _output_file=_output_file[:-3]+".pyc"
+            output_file.write(_input_file,arcname=_output_file)
     
             if file.endswith(".py"): #Add the py files for tracebacks
-                input_file=os.path.join(project_root,real_folder,file)
-                output_file=os.path.join(project_name,zip_folder,file)
-                file_zip.write(input_file,arcname=output_file)
+                _input_file=os.path.join(project_root,real_folder,file)
+                _output_file=os.path.join(project_name,zip_folder,file)
+                output_file.write(_input_file,arcname=_output_file)
+                
     add_folder_to_zipapp("_vendor")
     add_folder_to_zipapp("src","")
     
     def init_template():
         import os, sys
         
-        dir_path=os.path.abspath(os.path.dirname(__file__)) #Path of the modules and main module
+        dir_path=os.path.abspath(os.path.dirname(__file__)) #Path of the folder of _vendor and wrapped module
+        
         zip_path=os.path.dirname(os.path.abspath(os.path.dirname(__file__))) #Path of zip file
         
-        sys.path.insert(0,os.path.join(dir_path,"_vendor"))
-        sys.path.insert(0,dir_path)
         
         import zipfile
         import copy
@@ -84,6 +90,7 @@ def build():
         import importlib
         from importlib import abc
         import types
+        
         Zipfile=zipfile.ZipFile(zip_path)
         
         def is_path_in_zipfile(path):
@@ -167,6 +174,7 @@ def build():
                     raise FileNotFoundError
         os.stat=new_stat
         
+
         old_unmarshal=sys.modules['zipimport']._unmarshal_code
         def new_unmarshal(*args,**kwargs): #Rewrite co_filename to match path inside zip for tracebacks
             code=old_unmarshal(*args,**kwargs)
@@ -210,34 +218,37 @@ def build():
                 if os.path.exists(extension_path):
                     return importlib.util.spec_from_file_location(fullname,extension_path)
         sys.meta_path.append(ExtensionFinder())
-        def main():
-            #Switch to actual module
+        
+        def mod_main():
             import importlib,sys
-            importlib.reload(sys.modules['NAME'])
-            sys.path.insert(0,dir_path)
-            import NAME
-            NAME.main()
+            try:
+                import runpy
+                runpy.run_module("NAME.__main__",run_name="__main__") #Run function provided in __main__.py
+            except: #__main__.py doesn't exist
+                import NAME
+                NAME.main() #Run main function provided in the actual module
+                
         import importlib,sys
-        importlib.reload(sys.modules['NAME'])
+        sys.path.insert(0,os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
         sys.path.insert(0,dir_path)
-        import NAME
-        globals().update(NAME.__dict__)
+        importlib.reload(sys.modules['NAME']) #Load actual module
+        globals().update(sys.modules['NAME'].__dict__)
     
     def main_template(): #Just runs __init__.py
         import os,sys,traceback
         sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working. Python's C traceback doesn't work, but the Python traceback module does, so use that.
         
-        sys.path.insert(0,os.path.abspath(os.path.dirname(__file__)))
+        sys.path.insert(0,os.path.abspath(os.path.dirname(__file__))) #So the wrapper module is imported instead.
         
-        import NAME
-        NAME.main()
+        import NAME #Import wrapper
+        NAME.mod_main() #Run function
     
     def write_function_to_zip(function,file):
         import inspect
         import textwrap
         source=inspect.getsourcelines(function)[0][1:]
         source=textwrap.dedent("".join(source).replace("NAME",project_name))
-        file_zip.writestr(file,source)
+        output_file.writestr(file,source)
     write_function_to_zip(main_template,"__main__.py")
     
     write_function_to_zip(init_template,os.path.join(project_name,"__init__.py"))
