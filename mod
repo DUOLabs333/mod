@@ -36,7 +36,7 @@ def build():
         os.chmod(path, mode)
     make_executable(file_name)
     file_zip=zipfile.ZipFile(file_name,'a')
-    def add_folder_to_zip(real_folder,zip_folder=None):
+    def add_folder_to_zipapp(real_folder,zip_folder=None):
         if zip_folder is None:
             zip_folder=real_folder
         
@@ -47,31 +47,27 @@ def build():
         
         for file in files:
             input_file=os.path.join(project_root,real_folder,file)
-            output_file=os.path.join(zip_folder,file)
+            output_file=os.path.join(project_name,zip_folder,file)
             
             if extensions:
                 if file.endswith(".so") or ".so." in file:
-                    os.makedirs(os.path.join(project_root,"extensions",os.path.dirname(file)),exist_ok=True)
-                    if file.endswith(".so"):
-                        shutil.copyfile(input_file,os.path.join(project_root,"extensions",file.split(".")[0]+".so"))
-                    else:
-                        shutil.copyfile(input_file,os.path.join(project_root,"extensions",file))
-                    continue
+                    os.makedirs(os.path.join(project_root,"_extensions",zip_folder,os.path.dirname(file)),exist_ok=True)
+                    shutil.copyfile(input_file,os.path.join(project_root,"_extensions",zip_folder,file))
                 
             #Compile py to pyc to start up faster (otherwise, zipimport will compile all the files again)
             if file.endswith(".py"):
                 
-                py_compile.compile(input_file,cfile="temp.pyc",dfile=os.path.join("$ROOT$",zip_folder,file)) #Possibly replace this with joining the path with r'/\' for dfile. This is so that tracebacks will look at the correct .py file instead of finding nothing
+                py_compile.compile(input_file,cfile="temp.pyc",dfile=os.path.join("$ROOT$",project_name,zip_folder,file)) #Possibly replace this with joining the path with r'/\' for dfile. This is so that tracebacks will look at the correct .py file instead of finding nothing
                 input_file="temp.pyc"
                 output_file=output_file[:-3]+".pyc"
             file_zip.write(input_file,arcname=output_file)
     
             if file.endswith(".py"): #Add the py files for tracebacks
                 input_file=os.path.join(project_root,real_folder,file)
-                output_file=os.path.join(zip_folder,file)
+                output_file=os.path.join(project_name,zip_folder,file)
                 file_zip.write(input_file,arcname=output_file)
-    add_folder_to_zip("_vendor",os.path.join(project_name,"_vendor"))
-    add_folder_to_zip("src",project_name)
+    add_folder_to_zipapp("_vendor")
+    add_folder_to_zipapp("src","")
     
     def init_template():
         import os, sys
@@ -202,11 +198,18 @@ def build():
         
         class ExtensionFinder():
             def find_spec(self,fullname, path, target=None):
-                extension_path=os.path.join(os.path.dirname(zip_path),"extensions",fullname.replace(".",os.sep)+".so")
+                extensions_dir=os.path.join(os.path.dirname(zip_path),"_extensions")
+                extension_filter=os.path.join(extensions_dir,'**',fullname.replace(".",os.sep)+".*.so")
+                import fnmatch
+                try:
+                    extensions_dir_files=[os.path.join(dp, f) for dp, dn, fn in os.walk(extensions_dir) for f in fn]
+                    extension_path=fnmatch.filter(extensions_dir_files,extension_filter)[0]
+                except:
+                    return
+                
                 if os.path.exists(extension_path):
                     return importlib.util.spec_from_file_location(fullname,extension_path)
         sys.meta_path.append(ExtensionFinder())
-        
         def main():
             #Switch to actual module
             import importlib,sys
@@ -214,7 +217,6 @@ def build():
             sys.path.insert(0,dir_path)
             import NAME
             NAME.main()
-        
         import importlib,sys
         importlib.reload(sys.modules['NAME'])
         sys.path.insert(0,dir_path)
