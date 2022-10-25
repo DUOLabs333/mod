@@ -85,7 +85,7 @@ def build():
         
         
         import zipfile
-        import copy
+        from copy import copy
         import builtins
         import importlib
         from importlib import abc
@@ -108,7 +108,7 @@ def build():
             result.append(path)
             return result
             
-        old_open=open
+        old_open=copy(open)
         @staticmethod #Allows for use in classes
         def new_open(*args,**kwargs):
             path=args[0]
@@ -123,10 +123,7 @@ def build():
             if not path[0]:
                 return old_open(*args,**kwargs)
             else:
-                if mode.endswith("b"):
-                    return zipfile.Path(Zipfile,path[1]).open(mode)
-                else:
-                    return Zipfile.open(path[1],mode)
+                return zipfile.Path(Zipfile,path[1]).open(mode)
         
         builtins.open=new_open
         import io
@@ -160,7 +157,7 @@ def build():
                 return [os.path.relpath(_,path[1]) for _ in Zipfile.namelist() if _.startswith(path[1]) ]
         #os.listdir=new_listdir
         
-        old_stat=os.stat
+        old_stat=copy(os.stat)
         @staticmethod
         def new_stat(*args,**kwargs):
             path=args[0]
@@ -169,7 +166,7 @@ def build():
                 return old_stat(*args,**kwargs)
             else:
                 if path[1] in Zipfile.namelist():
-                    return os.stat(zip_path)
+                    return old_stat(zip_path)
                 else:
                     raise FileNotFoundError
         os.stat=new_stat
