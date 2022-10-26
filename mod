@@ -90,6 +90,7 @@ def build():
         import importlib
         from importlib import abc
         import types
+        import stat
         
         Zipfile=zipfile.ZipFile(zip_path)
         
@@ -166,7 +167,13 @@ def build():
                 return old_stat(*args,**kwargs)
             else:
                 if path[1] in Zipfile.namelist():
-                    return old_stat(zip_path)
+                    statinfo=old_stat(zip_path)
+                    stat_class=type(statinfo)
+                    statinfo=list(statinfo)
+                    fileobj=Zipfile.open(path[1])
+                    fileobj.seek(0,os.SEEK_END)
+                    statinfo[stat.ST_SIZE]=fileobj.tell()
+                    return stat_class(statinfo)
                 else:
                     raise FileNotFoundError
         os.stat=new_stat
@@ -236,7 +243,6 @@ def build():
         sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working. Python's C traceback doesn't work, but the Python traceback module does, so use that.
         
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__))) #So the wrapper module is imported instead.
-        
         import NAME #Import wrapper
         NAME.mod_main() #Run function
     
