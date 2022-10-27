@@ -45,10 +45,20 @@ def build():
         if zip_folder is None:
             zip_folder=real_folder #Default to using real_folder
         
-        files=[os.path.join(dp, f) for dp, dn, filenames in os.walk(os.path.join(project_root,real_folder),followlinks=True) for f in filenames] #Get all files in real_folder
+        subfolders=[os.path.join(project_root,real_folder)]
+        files=[]
         
-        files=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in files if os.path.splitext(_)[1] not in [".pyc",".whl"] and not os.path.dirname(_).endswith(".dist-info")] #Remove unneccessary folders and files
+        for folder in subfolders:
+            for path in os.scandir(folder):
+                if path.is_dir() and not os.path.dirname(path.path).endswith(".dist-info"):
+                    subfolders.append(path.path)
+                elif path.is_file() and os.path.splitext(path.path)[1] not in [".pyc",".whl"]:
+                    files.append(path.path)
         
+        
+        subfolders=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in subfolders]
+        files=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in files]
+
         for file in files:
             _input_file=os.path.join(project_root,real_folder,file)
             _output_file=os.path.join(project_name,zip_folder,file)
@@ -72,7 +82,9 @@ def build():
                 _input_file=os.path.join(project_root,real_folder,file)
                 _output_file=os.path.join(project_name,zip_folder,file)
                 output_file.write(_input_file,arcname=_output_file)
-                
+    
+        for folder in subfolders: #Add empty directories to zip files to support namespace packages
+            output_file.writestr(zipfile.ZipInfo(os.path.join(project_name,zip_folder,folder)+os.sep),"")      
     add_folder_to_zipapp("_vendor")
     add_folder_to_zipapp("src","")
     
