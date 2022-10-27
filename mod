@@ -82,6 +82,9 @@ def build():
         dir_path=os.path.abspath(os.path.dirname(__file__)) #Path of the folder of _vendor and wrapped module
         
         zip_path=os.path.dirname(os.path.abspath(os.path.dirname(__file__))) #Path of zip file
+        zip_stat=os.stat(zip_path)
+        zip_stat_class=type(zip_stat)
+        zip_stat=list(zip_stat)
         
         
         import zipfile
@@ -158,6 +161,7 @@ def build():
                 return [os.path.relpath(_,path[1]) for _ in Zipfile.namelist() if _.startswith(path[1]) ]
         #os.listdir=new_listdir
         
+        file_sizes={} #Cache file sizes
         old_stat=copy(os.stat)
         @staticmethod
         def new_stat(*args,**kwargs):
@@ -167,13 +171,18 @@ def build():
                 return old_stat(*args,**kwargs)
             else:
                 if path[1] in Zipfile.namelist():
-                    statinfo=old_stat(zip_path)
-                    stat_class=type(statinfo)
-                    statinfo=list(statinfo)
-                    fileobj=Zipfile.open(path[1])
-                    fileobj.seek(0,os.SEEK_END)
-                    statinfo[stat.ST_SIZE]=fileobj.tell()
-                    return stat_class(statinfo)
+                    if path[1] not in file_sizes:
+                        fileobj=Zipfile.open(path[1])
+                        fileobj.seek(0,os.SEEK_END)
+                        fileSize=fileobj.tell()
+                        file_sizes[path[1]]=fileSize
+                        fileobj.close()
+                    else:
+                        fileSize=file_sizes[path[1]]
+                    
+                    filestat=zip_stat.copy()
+                    filestat[stat.ST_SIZE]=fileSize
+                    return zip_stat_class(filestat)
                 else:
                     raise FileNotFoundError
         os.stat=new_stat
