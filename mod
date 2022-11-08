@@ -83,7 +83,8 @@ def build():
                 output_file.write(_input_file,arcname=_output_file)
     
         for folder in subfolders: #Add empty directories to zip files to support namespace packages
-            output_file.writestr(zipfile.ZipInfo(os.path.join(project_name,zip_folder,folder)+"/"),"")      
+            output_file.writestr(zipfile.ZipInfo(os.path.join(project_name,zip_folder,folder)+"/"),"")
+            pass     
     add_folder_to_zipapp("_vendor")
     add_folder_to_zipapp("src","")
     
@@ -105,7 +106,6 @@ def build():
         from importlib import abc
         import types
         import stat
-        
         Zipfile=zipfile.ZipFile(zip_path)
         
         def is_path_in_zipfile(path):
@@ -172,7 +172,7 @@ def build():
                 return [os.path.relpath(_,path[1]) for _ in Zipfile.namelist() if _.startswith(path[1]) ]
         #os.listdir=new_listdir
         
-        file_sizes={} #Cache file sizes
+        file_stats={} #Cache stat of files in Zipfile
         old_stat=copy(os.stat)
         @staticmethod
         def new_stat(*args,**kwargs):
@@ -182,17 +182,19 @@ def build():
                 return old_stat(*args,**kwargs)
             else:
                 if path[1] in Zipfile.namelist():
-                    if path[1] not in file_sizes:
+                    if path[1] not in file_stats:
+                        file_stats[path[1]]=[]
                         fileobj=Zipfile.open(path[1])
                         fileobj.seek(0,os.SEEK_END)
                         fileSize=fileobj.tell()
-                        file_sizes[path[1]]=fileSize
+                        file_stats[path[1]].append([stat.ST_SIZE,fileSize])
                         fileobj.close()
-                    else:
-                        fileSize=file_sizes[path[1]]
-                    
+                        
+                        #file_stats[path[1]].append([stat.ST_MODE, stat.S_IFDIR if zipfile.Path(Zipfile,path[1]).is_dir() else stat.S_IFREG]) 
                     filestat=zip_stat.copy()
-                    filestat[stat.ST_SIZE]=fileSize
+                    for i in file_stats[path[1]]:
+                        filestat[i[0]]=i[1]
+                
                     return zip_stat_class(filestat)
                 else:
                     raise FileNotFoundError
@@ -218,30 +220,22 @@ def build():
             code=_overwrite_co_filename(code)
             return code
         sys.modules['zipimport']._unmarshal_code=new_unmarshal
-
-        #Finds C extensions in 'extensions' folder and returns it 
-        class ExtensionLoader(importlib.abc.Loader):
-            def create_module(spec):
-                self.spec=spec
-                return importlib.util.module_from_spec(spec)
-            
-            def exec_module(module):
-                self.spec.loader.exec_module(module)
         
+        #Finds C extensions in 'extensions' folder and returns the path to be used to be imported by normal Python machinery
         class ExtensionFinder():
             def find_spec(self,fullname, path, target=None):
                 extensions_dir=os.path.join(os.path.dirname(zip_path),"_extensions")
                 extension_filter=os.path.join(extensions_dir,'**',fullname.replace(".",os.sep)+".*.so")
                 import fnmatch
+                
                 try:
                     extensions_dir_files=[os.path.join(dp, f) for dp, dn, fn in os.walk(extensions_dir) for f in fn]
                     extension_path=fnmatch.filter(extensions_dir_files,extension_filter)[0]
                 except:
                     return
-                
                 if os.path.exists(extension_path):
                     return importlib.util.spec_from_file_location(fullname,extension_path)
-        sys.meta_path.append(ExtensionFinder())
+        sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
         
         def mod_main():
             import importlib,sys
