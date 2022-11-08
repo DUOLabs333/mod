@@ -6,27 +6,35 @@ import os, shutil
 import py_compile
 
 parser = argparse.ArgumentParser(description='Bundle a Python application')
-
-parser.add_argument(dest='action',metavar='ACTION',type=str,help='Action mod should take')
-parser.add_argument(dest='root', metavar='PROJECT', type=str, help='Project path',nargs='?', default='.')
 parser.add_argument('-o','--output',metavar='OUTPUT FILE',dest='file_name',type=str,default=None)
 parser.add_argument('--extensions','--ext',action='store_const',metavar='EXTENSIONS',dest='extensions',const=True,default=False,help='Whether to allow the importing of C extensions (not needed if C extensions are optional')
 
+actions_parser=parser.add_subparsers(dest='action',metavar='ACTION',help='Action mod should take')
+actions_parser.required=True
+
+build_parser=actions_parser.add_parser("build")
+build_parser.add_argument(dest='root', metavar='PROJECT', type=str, help='Project path',nargs='?', default='.')
+
+get_parser=actions_parser.add_parser("get")
+get_parser.add_argument(dest='module', metavar='MODULE', type=str, help='Module to download')
+
 args = parser.parse_args()
 
-project_root=os.path.abspath(args.root) #Path of the project directory
 
-project_name=os.path.relpath(project_root,os.path.dirname(project_root)) #Name of the main module in the project. Defined as the name of the project folder (last part of its path)
 
-if not args.file_name:
-    args.file_name=os.path.join(project_root,project_name) #By default, the output file has the same name as the project_name, and will be in the project directory 
-    
-file_name=args.file_name
 
-extensions=args.extensions #Whether to support C extensions. By default, it will not
 
 def build():
+    project_root=os.path.abspath(args.root) #Path of the project directory
     
+    project_name=os.path.relpath(project_root,os.path.dirname(project_root)) #Name of the main module in the project. Defined as the name of the project folder (last part of its path)
+    
+    if not args.file_name:
+        args.file_name=os.path.join(project_root,project_name) #By default, the output file has the same name as the project_name, and will be in the project directory 
+         
+    file_name=args.file_name
+     
+    extensions=args.extensions #Whether to support C extensions. By default, it will not
     output_file=open(file_name,"w+")
     output_file.write("#! /usr/bin/env python\n") #Add shebang to support running without prefixing python
     output_file.close() #Can't open file with zipfile without closing the file first
@@ -239,10 +247,10 @@ def build():
         
         def mod_main():
             import importlib,sys
-            try:
+            if os.path.isfile(os.path.join(zip_path,"NAME","NAME","__main__.py")):
                 import runpy
                 runpy.run_module("NAME.__main__",run_name="__main__") #Run function provided in __main__.py
-            except: #__main__.py doesn't exist
+            else: #__main__.py doesn't exist
                 import NAME
                 NAME.main() #Run main function provided in the actual module
                 
@@ -270,5 +278,26 @@ def build():
     
     write_function_to_zip(init_template,os.path.join(project_name,"__init__.py"))
     
-
+def get():
+    import tempfile, shutil
+    import subprocess
+    with tempfile.TemporaryDirectory() as buildpath:
+        module=args.module
+        normalized_module=args.module.replace("-","_")
+        old_cwd=os.getcwd()
+        os.chdir(buildpath)
+        subprocess.run(["pip","install","-t",os.path.join(normalized_module,"_vendor"),module])
+        os.chdir(normalized_module)
+        os.makedirs(os.path.join("src",normalized_module))
+        if os.path.isdir(os.path.join("_vendor",normalized_module)):
+            shutil.move(os.path.join("_vendor",normalized_path),os.path.join("src",normalized_module))
+        else:
+            os.rename(os.path.join("_vendor","bin",module),os.path.join("src",normalized_module,"__main__.py"))
+            with open(os.path.join("src",normalized_module,"__init__.py"),"a+") as f:
+                pass
+        args.root='.'
+        build()
+        shutil.move(normalized_module,os.path.join(old_cwd,module))
+        if args.extensions:
+            shutil.move("_extensions",os.path.join(old_cwd))
 globals()[args.action]()
