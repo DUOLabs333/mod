@@ -7,7 +7,7 @@ import py_compile
 
 parser = argparse.ArgumentParser(description='Bundle a Python application')
 parser.add_argument('-o','--output',metavar='OUTPUT FILE',dest='file_name',type=str,default=None)
-parser.add_argument('--extensions','--ext',action='store_const',metavar='EXTENSIONS',dest='extensions',const=True,default=False,help='Whether to allow the importing of C extensions (not needed if C extensions are optional')
+parser.add_argument('--extensions','--ext',action='store_const',dest='extensions',const=True,default=False,help='Whether to allow the importing of C extensions (not needed if C extensions are optional')
 
 actions_parser=parser.add_subparsers(dest='action',metavar='ACTION',help='Action mod should take')
 actions_parser.required=True
@@ -17,6 +17,8 @@ build_parser.add_argument(dest='root', metavar='PROJECT', type=str, help='Projec
 
 get_parser=actions_parser.add_parser("get")
 get_parser.add_argument(dest='module', metavar='MODULE', type=str, help='Module to download')
+get_parser.add_argument('--bin',dest='bin',type=str,help='Binary from module to install',default=None)
+get_parser.add_argument('--no-deps',action='store_const',dest='deps',const=False,default=True)
 
 args = parser.parse_args()
 
@@ -129,6 +131,7 @@ def build():
                 result.append(False)
                 
             result.append(path)
+            
             return result
             
         old_open=copy(open)
@@ -141,7 +144,7 @@ def build():
                 mode=kwargs['mode']
             else:
                 mode='r'
-                
+            
             path=is_path_in_zipfile(path)
             if not path[0]:
                 return old_open(*args,**kwargs)
@@ -151,9 +154,9 @@ def build():
         builtins.open=new_open
         import io
         io.open=new_open
+        sys.modules['_io'].open=new_open
         importlib.reload(sys.modules['pathlib']) #So it picks up new io
         importlib.reload(sys.modules['tokenize']) #So it picks up new io
-        
         
         
         old_makedirs=os.makedirs
@@ -198,7 +201,7 @@ def build():
                         file_stats[path[1]].append([stat.ST_SIZE,fileSize])
                         fileobj.close()
                         
-                        #file_stats[path[1]].append([stat.ST_MODE, stat.S_IFDIR if zipfile.Path(Zipfile,path[1]).is_dir() else stat.S_IFREG]) 
+                        file_stats[path[1]].append([stat.ST_MODE, stat.S_IFDIR if zipfile.Path(Zipfile,path[1]).is_dir() else stat.S_IFREG]) 
                     filestat=zip_stat.copy()
                     for i in file_stats[path[1]]:
                         filestat[i[0]]=i[1]
@@ -241,6 +244,7 @@ def build():
                     extension_path=fnmatch.filter(extensions_dir_files,extension_filter)[0]
                 except:
                     return
+                print(extension_path)
                 if os.path.exists(extension_path):
                     return importlib.util.spec_from_file_location(fullname,extension_path)
         sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
@@ -286,18 +290,20 @@ def get():
         normalized_module=args.module.replace("-","_")
         old_cwd=os.getcwd()
         os.chdir(buildpath)
-        subprocess.run(["pip","install","-t",os.path.join(normalized_module,"_vendor"),module])
+        binary=args.bin or module
+        subprocess.run(["pip","install"]+(["--no-deps"] if not args.deps else [])+["-t",os.path.join(normalized_module,"_vendor"),module])
         os.chdir(normalized_module)
-        os.makedirs(os.path.join("src",normalized_module))
         if os.path.isdir(os.path.join("_vendor",normalized_module)):
-            shutil.move(os.path.join("_vendor",normalized_path),os.path.join("src",normalized_module))
+            os.makedirs("src")
+            shutil.move(os.path.join("_vendor",normalized_module),"src")
         else:
-            os.rename(os.path.join("_vendor","bin",module),os.path.join("src",normalized_module,"__main__.py"))
+            os.makedirs(os.path.join("src",normalized_module))
+            os.rename(os.path.join("_vendor","bin",binary),os.path.join("src",normalized_module,"__main__.py"))
             with open(os.path.join("src",normalized_module,"__init__.py"),"a+") as f:
                 pass
         args.root='.'
         build()
-        shutil.move(normalized_module,os.path.join(old_cwd,module))
+        shutil.move(normalized_module,os.path.join(old_cwd,binary))
         if args.extensions:
             shutil.move("_extensions",os.path.join(old_cwd))
 globals()[args.action]()
