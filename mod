@@ -159,18 +159,6 @@ def build():
         importlib.reload(sys.modules['tokenize']) #So it picks up new io
         
         
-        old_makedirs=os.makedirs
-        @staticmethod
-        def new_makedirs(*args,**kwargs):
-            path=args[0]
-            path=is_path_in_zipfile(path)
-            
-            if not path[0]:
-                return old_makedirs(*args,**kwargs)
-            else:
-                return old_makedirs(path[1],exist_ok=True)
-        #os.makedirs=new_makedirs
-        
         old_listdir=os.listdir
         @staticmethod
         def new_listdir(*args,**kwargs):
@@ -293,14 +281,18 @@ def get():
         binary=args.bin or module
         subprocess.run(["pip","install"]+(["--no-deps"] if not args.deps else [])+["-t",os.path.join(normalized_module,"_vendor"),module])
         os.chdir(normalized_module)
+        
         if os.path.isdir(os.path.join("_vendor",normalized_module)):
             os.makedirs("src")
             shutil.move(os.path.join("_vendor",normalized_module),"src")
-        else:
-            os.makedirs(os.path.join("src",normalized_module))
-            os.rename(os.path.join("_vendor","bin",binary),os.path.join("src",normalized_module,"__main__.py"))
-            with open(os.path.join("src",normalized_module,"__init__.py"),"a+") as f:
+            
+        if os.path.isfile(os.path.join("_vendor","bin",binary)):
+            os.makedirs(os.path.join("src",normalized_module),exist_ok=True)
+            if not os.path.isfile(os.path.join("src",normalized_module,"__main__.py")): #Don't overwrite __main__.py --- it is the priority
+                os.rename(os.path.join("_vendor","bin",binary),os.path.join("src",normalized_module,"__main__.py"))
+            with open(os.path.join("src",normalized_module,"__init__.py"),"a+") as f: #Makes file if it doesn't exist
                 pass
+           
         args.root='.'
         build()
         shutil.move(normalized_module,os.path.join(old_cwd,binary))
