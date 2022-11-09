@@ -235,7 +235,20 @@ def build():
                 print(extension_path)
                 if os.path.exists(extension_path):
                     return importlib.util.spec_from_file_location(fullname,extension_path)
+        import importlib.metadata
+        class CustomDistribution(importlib.metadata.Distribution):
+            def __init__(self,name):
+                import fnmatch
+                self.dist_path=fnmatch.filter(new_listdir(dir_path+"/_vendor"),name.replace("-","_")+"-*.dist-info")[0]
+            def read_text(self, filename):
+                return open('/'.join([dir_path,"_vendor",self.dist_path,filename])).read()
+        class DistributionFinder(importlib.metadata.DistributionFinder):
+            def find_distributions(self,context): #Since importlib.metadata doesn't support subdirectories
+            
+                return [CustomDistribution(context.name)]
+        sys.meta_path.insert(0,DistributionFinder())
         sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
+
         
         def mod_main():
             import importlib,sys
@@ -251,7 +264,7 @@ def build():
         sys.path.insert(0,dir_path)
         importlib.reload(sys.modules['NAME']) #Load actual module
         globals().update(sys.modules['NAME'].__dict__)
-    
+        
     def main_template(): #Just runs __init__.py
         import os,sys,traceback
         sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working. Python's C traceback doesn't work, but the Python traceback module does, so use that.
@@ -281,11 +294,9 @@ def get():
         binary=args.bin or module
         subprocess.run(["pip","install"]+(["--no-deps"] if not args.deps else [])+["-t",os.path.join(normalized_module,"_vendor"),module])
         os.chdir(normalized_module)
-        
         if os.path.isdir(os.path.join("_vendor",normalized_module)):
             os.makedirs("src")
             shutil.move(os.path.join("_vendor",normalized_module),"src")
-            
         if os.path.isfile(os.path.join("_vendor","bin",binary)):
             os.makedirs(os.path.join("src",normalized_module),exist_ok=True)
             if not os.path.isfile(os.path.join("src",normalized_module,"__main__.py")): #Don't overwrite __main__.py --- it is the priority
