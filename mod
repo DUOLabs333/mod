@@ -19,6 +19,7 @@ get_parser=actions_parser.add_parser("get")
 get_parser.add_argument(dest='module', metavar='MODULE', type=str, help='Module to download')
 get_parser.add_argument('--bin',dest='bin',type=str,help='Binary from module to install',default=None)
 get_parser.add_argument('--no-deps',action='store_const',dest='deps',const=False,default=True)
+get_parser.add_argument('--setup-only',action='store_const',dest='setup_only',const=True,default=False)
 
 args = parser.parse_args()
 
@@ -144,7 +145,6 @@ def build():
                 mode=kwargs['mode']
             else:
                 mode='r'
-            
             path=is_path_in_zipfile(path)
             if not path[0]:
                 return old_open(*args,**kwargs)
@@ -158,7 +158,6 @@ def build():
         importlib.reload(sys.modules['pathlib']) #So it picks up new io
         importlib.reload(sys.modules['tokenize']) #So it picks up new io
         
-        
         old_listdir=os.listdir
         @staticmethod
         def new_listdir(*args,**kwargs):
@@ -169,7 +168,7 @@ def build():
                 return old_listdir(*args,**kwargs)
             else:
                 return [os.path.relpath(_,path[1]) for _ in Zipfile.namelist() if _.startswith(path[1]) ]
-        #os.listdir=new_listdir
+        os.listdir=new_listdir
         
         file_stats={} #Cache stat of files in Zipfile
         old_stat=copy(os.stat)
@@ -303,10 +302,13 @@ def get():
                 os.rename(os.path.join("_vendor","bin",binary),os.path.join("src",normalized_module,"__main__.py"))
             with open(os.path.join("src",normalized_module,"__init__.py"),"a+") as f: #Makes file if it doesn't exist
                 pass
-           
-        args.root='.'
-        build()
-        shutil.move(normalized_module,os.path.join(old_cwd,binary))
-        if args.extensions:
-            shutil.move("_extensions",os.path.join(old_cwd))
+        if args.setup_only:
+            os.chdir(buildpath)
+            shutil.copytree(normalized_module,os.path.join(old_cwd,normalized_module))
+        else:
+            args.root='.'
+            build()
+            shutil.move(normalized_module,os.path.join(old_cwd,binary))
+            if args.extensions:
+                shutil.move("_extensions",os.path.join(old_cwd))
 globals()[args.action]()
