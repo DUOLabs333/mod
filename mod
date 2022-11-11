@@ -234,6 +234,7 @@ def build():
                 print(extension_path)
                 if os.path.exists(extension_path):
                     return importlib.util.spec_from_file_location(fullname,extension_path)
+                    
         import importlib.metadata
         class CustomDistribution(importlib.metadata.Distribution):
             def __init__(self,name):
@@ -241,14 +242,18 @@ def build():
                 self.dist_path=fnmatch.filter(new_listdir(dir_path+"/_vendor"),name.replace("-","_")+"-*.dist-info")[0]
             def read_text(self, filename):
                 return open('/'.join([dir_path,"_vendor",self.dist_path,filename])).read()
+
         class DistributionFinder(importlib.metadata.DistributionFinder):
+            def find_spec(self,*args,**kwargs): #There's nothing to offer here, so just return nothing
+                return
             def find_distributions(self,context): #Since importlib.metadata doesn't support subdirectories
-            
-                return [CustomDistribution(context.name)]
+                if context.name:
+                    return [CustomDistribution(context.name)]
+                else:
+                    return []
         sys.meta_path.insert(0,DistributionFinder())
         sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
 
-        
         def mod_main():
             import importlib,sys
             if os.path.isfile(os.path.join(zip_path,"NAME","NAME","__main__.py")):
@@ -267,7 +272,7 @@ def build():
     def main_template(): #Just runs __init__.py
         import os,sys,traceback
         sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working. Python's C traceback doesn't work, but the Python traceback module does, so use that.
-        
+
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__))) #So the wrapper module is imported instead.
         import NAME #Import wrapper
         NAME.mod_main() #Run function
