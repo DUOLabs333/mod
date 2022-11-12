@@ -188,7 +188,7 @@ def build():
                         file_stats[path[1]].append([stat.ST_SIZE,fileSize])
                         fileobj.close()
                         
-                        file_stats[path[1]].append([stat.ST_MODE, stat.S_IFDIR if zipfile.Path(Zipfile,path[1]).is_dir() else stat.S_IFREG]) 
+                        file_stats[path[1]].append([stat.ST_MODE, stat.S_IFDIR if zipfile.Path(Zipfile,path[1]).is_dir() else stat.S_IFREG])
                     filestat=zip_stat.copy()
                     for i in file_stats[path[1]]:
                         filestat[i[0]]=i[1]
@@ -231,27 +231,26 @@ def build():
                     extension_path=fnmatch.filter(extensions_dir_files,extension_filter)[0]
                 except:
                     return
-                print(extension_path)
                 if os.path.exists(extension_path):
                     return importlib.util.spec_from_file_location(fullname,extension_path)
-                    
-        import importlib.metadata
-        class CustomDistribution(importlib.metadata.Distribution):
-            def __init__(self,name):
-                import fnmatch
-                self.dist_path=fnmatch.filter(new_listdir(dir_path+"/_vendor"),name.replace("-","_")+"-*.dist-info")[0]
-            def read_text(self, filename):
-                return open('/'.join([dir_path,"_vendor",self.dist_path,filename])).read()
-
-        class DistributionFinder(importlib.metadata.DistributionFinder):
-            def find_spec(self,*args,**kwargs): #There's nothing to offer here, so just return nothing
-                return
-            def find_distributions(self,context): #Since importlib.metadata doesn't support subdirectories
-                if context.name:
-                    return [CustomDistribution(context.name)]
-                else:
-                    return []
-        sys.meta_path.insert(0,DistributionFinder())
+        if 0:
+            import importlib.metadata
+            class CustomDistribution(importlib.metadata.Distribution):
+                def __init__(self,name):
+                    import fnmatch
+                    self.dist_path=fnmatch.filter(new_listdir(dir_path+"/_vendor"),name.replace("-","_")+"-*.dist-info")[0]
+                def read_text(self, filename):
+                    return open('/'.join([dir_path,"_vendor",self.dist_path,filename])).read()
+    
+            class DistributionFinder(importlib.metadata.DistributionFinder):
+                def find_spec(self,*args,**kwargs): #There's nothing to offer here, so just return nothing
+                    return
+                def find_distributions(self,context): #Since importlib.metadata doesn't support subdirectories
+                    if context.name:
+                        return [CustomDistribution(context.name)]
+                    else:
+                        return []
+        #sys.meta_path.insert(0,DistributionFinder())
         sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
 
         def mod_main():
@@ -315,5 +314,5 @@ def get():
             build()
             shutil.move(normalized_module,os.path.join(old_cwd,binary))
             if args.extensions:
-                shutil.move("_extensions",os.path.join(old_cwd))
+                shutil.copytree("_extensions",os.path.join(old_cwd,"_extensions"))
 globals()[args.action]()
