@@ -290,12 +290,12 @@ def get():
     import tempfile, shutil
     import subprocess
     with tempfile.TemporaryDirectory() as buildpath:
-        module=args.module
-        normalized_module=args.module.replace("-","_")
+        module=args.module.split("[")[0]
+        normalized_module=module.replace("-","_")
         old_cwd=os.getcwd()
         os.chdir(buildpath)
         binary=args.bin or module
-        subprocess.run(["pip","install"]+(["--no-deps"] if not args.deps else [])+["-t",os.path.join(normalized_module,"_vendor"),module])
+        subprocess.run(["pip","install"]+(["--no-deps"] if not args.deps else [])+["-t",os.path.join(normalized_module,"_vendor"),args.module])
         os.chdir(normalized_module)
         if os.path.isdir(os.path.join("_vendor",normalized_module)):
             os.makedirs("src")
@@ -311,6 +311,7 @@ def get():
             shutil.copytree(normalized_module,os.path.join(old_cwd,normalized_module))
         else:
             args.root='.'
+            args.module=module
             build()
             shutil.move(normalized_module,os.path.join(old_cwd,binary))
             if args.extensions:
