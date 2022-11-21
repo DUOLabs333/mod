@@ -300,7 +300,10 @@ def get():
         if os.path.isdir(os.path.join("_vendor",normalized_module)):
             os.makedirs("src")
             shutil.move(os.path.join("_vendor",normalized_module),"src")
-        if os.path.isfile(os.path.join("_vendor","bin",binary)):
+        elif os.path.isfile(os.path.join("_vendor",normalized_module+".py")): #Support packages that is a single file
+            os.makedirs(os.path.join("src",normalized_module),exist_ok=True)
+            os.rename(os.path.join("_vendor",normalized_module+".py"),os.path.join("src",normalized_module,"__init__.py"))
+        if os.path.isfile(os.path.join("_vendor","bin",binary)): #Support packages that don't have a __main__ file
             os.makedirs(os.path.join("src",normalized_module),exist_ok=True)
             if not os.path.isfile(os.path.join("src",normalized_module,"__main__.py")): #Don't overwrite __main__.py --- it is the priority
                 os.rename(os.path.join("_vendor","bin",binary),os.path.join("src",normalized_module,"__main__.py"))
