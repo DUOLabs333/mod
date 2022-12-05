@@ -81,12 +81,15 @@ def build():
                 
             #Compile py to pyc to start up faster (otherwise, zipimport will compile all the files again)
             if file.endswith(".py"):
-                
-                py_compile.compile(_input_file,cfile="temp.pyc",dfile=os.path.join("$ROOT$",project_name,zip_folder,file)) #Possibly replace this with joining the path with r'/\' for dfile. This is so that tracebacks will look at the correct .py file instead of finding nothing
-                
-                _input_file="temp.pyc"
-                _output_file=_output_file[:-3]+".pyc"
-            output_file.write(_input_file,arcname=_output_file)
+                try:
+                    py_compile.compile(_input_file,cfile="temp.pyc",dfile=os.path.join("$ROOT$",project_name,zip_folder,file),doraise=True) #Possibly replace this with joining the path with r'/\' for dfile. This is so that tracebacks will look at the correct .py file instead of finding nothing
+                    
+                    _input_file="temp.pyc"
+                    _output_file=_output_file[:-3]+".pyc"
+                except py_compile.PyCompileError:
+                    _input_file=''
+            if _input_file:
+                output_file.write(_input_file,arcname=_output_file)
     
             if file.endswith(".py"): #Add the py files for tracebacks
                 _input_file=os.path.join(project_root,real_folder,file)
@@ -119,19 +122,34 @@ def build():
         import stat
         Zipfile=zipfile.ZipFile(zip_path)
         
+        old_stat=copy(os.stat)
         def is_path_in_zipfile(path):
             #Maybe support parameter mode, so redirect to empty file if writing. Make wrapper around common os functions all just getting new file and passing it in.
             result=[]
+            _path=path
             if not isinstance(path,int):
                 path=os.path.abspath(path)
                 
-            if not isinstance(path,int) and path!=zip_path and path.startswith(zip_path+os.sep):
+            if (not isinstance(path,int) and path!=zip_path and path.startswith(zip_path+os.sep)):
                 path=os.path.relpath(path,zip_path)
                 result.append(True) #Whether path is in zipfile
             else:
                 result.append(False)
-                
-            result.append(path)
+            extensions_dir=os.path.join(os.path.dirname(zip_path),"_extensions")
+            def ext_exists():
+                if not result[0] or not ('.so' in path or '.so.' in path):
+                    return False
+                try:
+                    old_stat(os.path.join(extensions_dir,os.path.relpath(_path,dir_path)))
+                except FileNotFoundError:
+                    False
+                else:
+                    return True
+            if ext_exists():
+                result[0]=False
+                result.append(os.path.join(extensions_dir,os.path.relpath(_path,dir_path)))
+            else:
+                result.append(path)
             
             return result
             
@@ -177,6 +195,9 @@ def build():
             path=args[0]
             path=is_path_in_zipfile(path)
             if not path[0]:
+                args=list(args)
+                args[0]=path[1]
+                args=tuple(args)
                 return old_stat(*args,**kwargs)
             else:
                 if path[1] in Zipfile.namelist():
@@ -263,7 +284,7 @@ def build():
                 NAME.main() #Run main function provided in the actual module
                 
         import importlib,sys
-        sys.path.insert(0,os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
+        sys.path.append(os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
         sys.path.insert(0,dir_path)
         importlib.reload(sys.modules['NAME']) #Load actual module
         globals().update(sys.modules['NAME'].__dict__)
