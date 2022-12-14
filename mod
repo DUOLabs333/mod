@@ -112,7 +112,7 @@ def build():
         zip_stat_class=type(zip_stat)
         zip_stat=list(zip_stat)
         
-        
+    
         import zipfile
         from copy import copy
         import builtins
@@ -120,6 +120,8 @@ def build():
         from importlib import abc
         import types
         import stat
+        import errno
+        import glob
         Zipfile=zipfile.ZipFile(zip_path)
         
         old_stat=copy(os.stat)
@@ -150,7 +152,6 @@ def build():
                 result.append(os.path.join(extensions_dir,os.path.relpath(_path,dir_path)))
             else:
                 result.append(path)
-            
             return result
             
         old_open=copy(open)
@@ -167,14 +168,16 @@ def build():
             if not path[0]:
                 return old_open(*args,**kwargs)
             else:
-                return zipfile.Path(Zipfile,path[1]).open(mode)
+                try:
+                    return zipfile.Path(Zipfile,path[1]).open(mode)
+                except FileNotFoundError as e:
+                    e.errno=errno.ENOENT
+                    raise e
         
         builtins.open=new_open
         import io
         io.open=new_open
         sys.modules['_io'].open=new_open
-        importlib.reload(sys.modules['pathlib']) #So it picks up new io
-        importlib.reload(sys.modules['tokenize']) #So it picks up new io
         
         old_listdir=os.listdir
         @staticmethod
@@ -190,9 +193,11 @@ def build():
         
         file_stats={} #Cache stat of files in Zipfile
         old_stat=copy(os.stat)
+
         @staticmethod
         def new_stat(*args,**kwargs):
             path=args[0]
+            
             path=is_path_in_zipfile(path)
             if not path[0]:
                 args=list(args)
@@ -219,7 +224,9 @@ def build():
                     raise FileNotFoundError
         os.stat=new_stat
         
-
+        importlib.reload(sys.modules['pathlib']) #So it picks up new io and os
+        importlib.reload(sys.modules['tokenize']) #So it picks up new io and os
+        
         old_unmarshal=sys.modules['zipimport']._unmarshal_code
         def new_unmarshal(*args,**kwargs): #Rewrite co_filename to match path inside zip for tracebacks
             code=old_unmarshal(*args,**kwargs)
@@ -244,12 +251,9 @@ def build():
         class ExtensionFinder():
             def find_spec(self,fullname, path, target=None):
                 extensions_dir=os.path.join(os.path.dirname(zip_path),"_extensions")
-                extension_filter=os.path.join(extensions_dir,'**',fullname.replace(".",os.sep)+".*.so")
-                import fnmatch
-                
+                extension_filter=os.path.join('*',fullname.replace(".",os.sep)+".*.so")
                 try:
-                    extensions_dir_files=[os.path.join(dp, f) for dp, dn, fn in os.walk(extensions_dir) for f in fn]
-                    extension_path=fnmatch.filter(extensions_dir_files,extension_filter)[0]
+                    extension_path=os.path.join(extensions_dir,glob.glob(extension_filter,root_dir=extensions_dir)[0])
                 except:
                     return
                 if os.path.exists(extension_path):
@@ -272,8 +276,8 @@ def build():
                     else:
                         return []
         #sys.meta_path.insert(0,DistributionFinder())
-        sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
 
+        sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
         def mod_main():
             import importlib,sys
             if os.path.isfile(os.path.join(zip_path,"NAME","NAME","__main__.py")):
@@ -282,7 +286,7 @@ def build():
             else: #__main__.py doesn't exist
                 import NAME
                 NAME.main() #Run main function provided in the actual module
-                
+                    
         import importlib,sys
         sys.path.append(os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
         sys.path.insert(0,dir_path)
@@ -296,7 +300,6 @@ def build():
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__))) #So the wrapper module is imported instead.
         import NAME #Import wrapper
         NAME.mod_main() #Run function
-    
     def write_function_to_zip(function,file):
         import inspect
         import textwrap
