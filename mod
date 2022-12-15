@@ -102,7 +102,7 @@ def build():
     add_folder_to_zipapp("_vendor")
     add_folder_to_zipapp("src","")
     
-    def init_template():
+    def setup_template():
         import os, sys
         
         dir_path=os.path.abspath(os.path.dirname(__file__)) #Path of the folder of _vendor and wrapped module
@@ -123,6 +123,8 @@ def build():
         import errno
         import glob
         Zipfile=zipfile.ZipFile(zip_path)
+        
+        zip_filelist=Zipfile.namelist()
         
         old_stat=copy(os.stat)
         def is_path_in_zipfile(path):
@@ -197,7 +199,6 @@ def build():
         @staticmethod
         def new_stat(*args,**kwargs):
             path=args[0]
-            
             path=is_path_in_zipfile(path)
             if not path[0]:
                 args=list(args)
@@ -205,7 +206,7 @@ def build():
                 args=tuple(args)
                 return old_stat(*args,**kwargs)
             else:
-                if path[1] in Zipfile.namelist():
+                if path[1] in zip_filelist:
                     if path[1] not in file_stats:
                         file_stats[path[1]]=[]
                         fileobj=Zipfile.open(path[1])
@@ -221,7 +222,7 @@ def build():
                 
                     return zip_stat_class(filestat)
                 else:
-                    raise FileNotFoundError
+                    raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), os.path.join(zip_path,path[1]))
         os.stat=new_stat
         
         importlib.reload(sys.modules['pathlib']) #So it picks up new io and os
@@ -278,18 +279,22 @@ def build():
         #sys.meta_path.insert(0,DistributionFinder())
 
         sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
+        sys.path.append(os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
+        sys.path.insert(0,dir_path)
         def mod_main():
-            import importlib,sys
+            import importlib,sys,os
             if os.path.isfile(os.path.join(zip_path,"NAME","NAME","__main__.py")):
                 import runpy
                 runpy.run_module("NAME.__main__",run_name="__main__") #Run function provided in __main__.py
             else: #__main__.py doesn't exist
                 import NAME
                 NAME.main() #Run main function provided in the actual module
+        os.environ['PYTHONPATH']=os.getenv('PYTHONPATH','')+':'+dir_path
+    def init_template():
+        import NAME.usercustomize
+        mod_main=NAME.usercustomize.mod_main
                     
         import importlib,sys
-        sys.path.append(os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
-        sys.path.insert(0,dir_path)
         importlib.reload(sys.modules['NAME']) #Load actual module
         globals().update(sys.modules['NAME'].__dict__)
         
@@ -298,17 +303,20 @@ def build():
         sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working. Python's C traceback doesn't work, but the Python traceback module does, so use that.
 
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__))) #So the wrapper module is imported instead.
+
         import NAME #Import wrapper
         NAME.mod_main() #Run function
+        
     def write_function_to_zip(function,file):
         import inspect
         import textwrap
         source=inspect.getsourcelines(function)[0][1:]
         source=textwrap.dedent("".join(source).replace("NAME",project_name))
         output_file.writestr(file,source)
+        
     write_function_to_zip(main_template,"__main__.py")
-    
     write_function_to_zip(init_template,os.path.join(project_name,"__init__.py"))
+    write_function_to_zip(setup_template,os.path.join(project_name,"usercustomize.py"))
     
 def get():
     import tempfile, shutil
