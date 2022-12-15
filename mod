@@ -112,7 +112,6 @@ def build():
         zip_stat_class=type(zip_stat)
         zip_stat=list(zip_stat)
         
-    
         import zipfile
         from copy import copy
         import builtins
@@ -122,11 +121,13 @@ def build():
         import stat
         import errno
         import glob
+        
         Zipfile=zipfile.ZipFile(zip_path)
         
-        zip_filelist=Zipfile.namelist()
+        zip_filelist=set(Zipfile.namelist())
         
         old_stat=copy(os.stat)
+
         def is_path_in_zipfile(path):
             #Maybe support parameter mode, so redirect to empty file if writing. Make wrapper around common os functions all just getting new file and passing it in.
             result=[]
@@ -175,7 +176,7 @@ def build():
                 except FileNotFoundError as e:
                     e.errno=errno.ENOENT
                     raise e
-        
+                       
         builtins.open=new_open
         import io
         io.open=new_open
@@ -227,7 +228,7 @@ def build():
         
         importlib.reload(sys.modules['pathlib']) #So it picks up new io and os
         importlib.reload(sys.modules['tokenize']) #So it picks up new io and os
-        
+
         old_unmarshal=sys.modules['zipimport']._unmarshal_code
         def new_unmarshal(*args,**kwargs): #Rewrite co_filename to match path inside zip for tracebacks
             code=old_unmarshal(*args,**kwargs)
@@ -248,6 +249,16 @@ def build():
             return code
         sys.modules['zipimport']._unmarshal_code=new_unmarshal
         
+        import runpy
+        old_run_module=copy(runpy._run_module_as_main)
+        def new_run_module(*args,**kwargs):
+            if not is_path_in_zipfile(sys.path[0]):
+                old_run_module(*args,**kwargs)
+            else:
+                exec(open(sys.path[0]).read(),globals())
+        runpy._run_module_as_main=new_run_module
+        del sys.modules['importlib._bootstrap_external']
+        importlib.reload(sys.modules['importlib']) #Reload runpy
         #Finds C extensions in 'extensions' folder and returns the path to be used to be imported by normal Python machinery
         class ExtensionFinder():
             def find_spec(self,fullname, path, target=None):
@@ -276,7 +287,7 @@ def build():
                         return [CustomDistribution(context.name)]
                     else:
                         return []
-        #sys.meta_path.insert(0,DistributionFinder())
+            sys.meta_path.insert(0,DistributionFinder())
 
         sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
         sys.path.append(os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
@@ -289,7 +300,7 @@ def build():
             else: #__main__.py doesn't exist
                 import NAME
                 NAME.main() #Run main function provided in the actual module
-        os.environ['PYTHONPATH']=os.getenv('PYTHONPATH','')+':'+dir_path
+        os.environ['PYTHONPATH']=os.getenv('PYTHONPATH','')+':'+dir_path #So subprocesses will pick up the setup code
     def init_template():
         import NAME.usercustomize
         mod_main=NAME.usercustomize.mod_main
