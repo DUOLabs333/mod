@@ -73,11 +73,12 @@ def build():
             _input_file=os.path.join(project_root,real_folder,file)
             _output_file=os.path.join(project_name,zip_folder,file)
             
-            if extensions: #Make _extensions folder to put Cython modules in, according to the paths 
-                if file.endswith(".so") or ".so." in file:
+           
+            if file.endswith(".so") or ".so." in file:
+                 if extensions: #Make _extensions folder to put Cython modules in, according to the paths
                     os.makedirs(os.path.join(project_root,"_extensions",zip_folder,os.path.dirname(file)),exist_ok=True)
                     shutil.copyfile(_input_file,os.path.join(project_root,"_extensions",zip_folder,file))
-                    continue
+                 continue
                 
             #Compile py to pyc to start up faster (otherwise, zipimport will compile all the files again)
             if file.endswith(".py"):
@@ -156,10 +157,12 @@ def build():
                 else:
                     return True
             if ext_exists():
-                result[0]=False
-                result.append(os.path.join(extensions_dir,os.path.relpath(_path,dir_path)))
+                result=[False,os.path.join(extensions_dir,os.path.relpath(_path,dir_path))]
             else:
                 result.append(path)
+            if result[0]:
+                if result[1] not in zip_filelist:
+                    raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), os.path.join(zip_path,result[1]))
             return result
         
         old_open=copy(open)
@@ -176,11 +179,7 @@ def build():
             if not path[0]:
                 return old_open(*args,**kwargs)
             else:
-                try:
-                    return zipfile.Path(Zipfile,path[1]).open(mode)
-                except FileNotFoundError as e:
-                    e.errno=errno.ENOENT
-                    raise e
+                return zipfile.Path(Zipfile,path[1]).open(mode)
                        
         builtins.open=new_open
         import io
@@ -215,23 +214,20 @@ def build():
                 args=tuple(args)
                 return old_stat(*args,**kwargs)
             else:
-                if path[1] in zip_filelist:
-                    if path[1] not in file_stats:
-                        file_stats[path[1]]=[]
-                        fileobj=Zipfile.open(path[1])
-                        fileobj.seek(0,os.SEEK_END)
-                        fileSize=fileobj.tell()
-                        file_stats[path[1]].append([stat.ST_SIZE,fileSize])
-                        fileobj.close()
-                        
-                        file_stats[path[1]].append([stat.ST_MODE, stat.S_IFDIR if zipfile.Path(Zipfile,path[1]).is_dir() else stat.S_IFREG])
-                    filestat=zip_stat.copy()
-                    for i in file_stats[path[1]]:
-                        filestat[i[0]]=i[1]
-                
-                    return zip_stat_class(filestat)
-                else:
-                    raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), os.path.join(zip_path,path[1]))
+                if path[1] not in file_stats:
+                    file_stats[path[1]]=[]
+                    fileobj=Zipfile.open(path[1])
+                    fileobj.seek(0,os.SEEK_END)
+                    fileSize=fileobj.tell()
+                    file_stats[path[1]].append([stat.ST_SIZE,fileSize])
+                    fileobj.close()
+                    
+                    file_stats[path[1]].append([stat.ST_MODE, stat.S_IFDIR if zipfile.Path(Zipfile,path[1]).is_dir() else stat.S_IFREG])
+                filestat=zip_stat.copy()
+                for i in file_stats[path[1]]:
+                    filestat[i[0]]=i[1]
+            
+                return zip_stat_class(filestat)
         os.stat=new_stat
         
         importlib.reload(sys.modules['pathlib']) #So it picks up new io and os
@@ -296,7 +292,7 @@ def build():
                     else:
                         return []
             sys.meta_path.insert(0,DistributionFinder())
-        #os.path.normpath=None
+        
         sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
         sys.path.append(os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
         sys.path.insert(0,dir_path)
