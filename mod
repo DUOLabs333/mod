@@ -188,6 +188,8 @@ def build():
         sys.modules['_io'].open=new_open
         
         old_listdir=os.listdir
+        zip_listdir=[_.rstrip('/') for _ in zip_filelist]
+        
         @staticmethod
         @functools.cache
         def new_listdir(*args,**kwargs):
@@ -197,7 +199,7 @@ def build():
             if not path[0]:
                 return old_listdir(*args,**kwargs)
             else:
-                return [os.path.relpath(_,path[1]) for _ in Zipfile.namelist() if _.startswith(path[1]) ]
+                return [os.path.relpath(_,path[1]) for _ in zip_listdir if _.startswith(path[1]) and _.count('/')==1+path[1].count('/') ]
         os.listdir=new_listdir
         
         file_stats={} #Cache stat of files in Zipfile
@@ -310,7 +312,7 @@ def build():
     def init_template():
         import NAME.usercustomize
         mod_main=NAME.usercustomize.mod_main
-                    
+                           
         import importlib,sys
         importlib.reload(sys.modules['NAME']) #Load actual module
         globals().update(sys.modules['NAME'].__dict__)
