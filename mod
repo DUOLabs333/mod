@@ -127,21 +127,26 @@ def build():
         zip_filelist=set(Zipfile.namelist())
         
         old_stat=copy(os.stat)
-
+        import functools
+        
         def is_path_in_zipfile(path):
             #Maybe support parameter mode, so redirect to empty file if writing. Make wrapper around common os functions all just getting new file and passing it in.
             result=[]
             _path=path
-            if not isinstance(path,int):
-                path=os.path.abspath(path)
+            if isinstance(path,int):
+                return [False,path]
                 
-            if (not isinstance(path,int) and path!=zip_path and path.startswith(zip_path+os.sep)):
+            path=os.path.abspath(path)
+                
+            if (path!=zip_path and path.startswith(zip_path+os.sep)):
                 path=os.path.relpath(path,zip_path)
                 result.append(True) #Whether path is in zipfile
             else:
                 result.append(False)
+                
             extensions_dir=os.path.join(os.path.dirname(zip_path),"_extensions")
-            def ext_exists():
+            
+            def ext_exists(): #Checks if referenced C extension file exists and return information if found
                 if not result[0] or not ('.so' in path or '.so.' in path):
                     return False
                 try:
@@ -156,7 +161,7 @@ def build():
             else:
                 result.append(path)
             return result
-            
+        
         old_open=copy(open)
         @staticmethod #Allows for use in classes
         def new_open(*args,**kwargs):
@@ -184,6 +189,7 @@ def build():
         
         old_listdir=os.listdir
         @staticmethod
+        @functools.cache
         def new_listdir(*args,**kwargs):
             path=args[0]
             path=is_path_in_zipfile(path)
@@ -288,19 +294,19 @@ def build():
                     else:
                         return []
             sys.meta_path.insert(0,DistributionFinder())
-
+        #os.path.normpath=None
         sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
         sys.path.append(os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
         sys.path.insert(0,dir_path)
         def mod_main():
             import importlib,sys,os
-            if os.path.isfile(os.path.join(zip_path,"NAME","NAME","__main__.py")):
+            if os.path.isfile(os.path.join(dir_path,"NAME","__main__.py")):
                 import runpy
                 runpy.run_module("NAME.__main__",run_name="__main__") #Run function provided in __main__.py
             else: #__main__.py doesn't exist
                 import NAME
                 NAME.main() #Run main function provided in the actual module
-        os.environ['PYTHONPATH']=os.getenv('PYTHONPATH','')+':'+dir_path #So subprocesses will pick up the setup code
+        os.environ['PYTHONPATH']=os.getenv('PYTHONPATH','')+os.pathsep+dir_path #So subprocesses will pick up the setup code
     def init_template():
         import NAME.usercustomize
         mod_main=NAME.usercustomize.mod_main
@@ -314,7 +320,7 @@ def build():
         sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working. Python's C traceback doesn't work, but the Python traceback module does, so use that.
 
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__))) #So the wrapper module is imported instead.
-
+       
         import NAME #Import wrapper
         NAME.mod_main() #Run function
         
