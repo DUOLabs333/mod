@@ -245,7 +245,7 @@ def build():
                 _code=_code.replace(co_filename=filename.replace("$ROOT$",zip_path,1))
                 consts=list(_code.co_consts)
                 for i,const in enumerate(consts):
-                    if isinstance(const,types.CodeType):
+                    if isinstance(const,types.CodeType) and const.co_filename.startswith("$ROOT$"):
                         consts[i]=_overwrite_co_filename(const)
                 _code=_code.replace(co_consts=tuple(consts))
                 return _code
