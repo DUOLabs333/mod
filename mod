@@ -145,21 +145,8 @@ def build():
             else:
                 result.append(False)
                 
-            extensions_dir=os.path.join(os.path.dirname(zip_path),"_extensions")
+            result.append(path)
             
-            def ext_exists(): #Checks if referenced C extension file exists and return information if found
-                if not result[0] or not ('.so' in path or '.so.' in path):
-                    return False
-                try:
-                    old_stat(os.path.join(extensions_dir,os.path.relpath(_path,dir_path)))
-                except FileNotFoundError:
-                    False
-                else:
-                    return True
-            if ext_exists():
-                result=[False,os.path.join(extensions_dir,os.path.relpath(_path,dir_path))]
-            else:
-                result.append(path)
             if result[0]:
                 if result[1] not in zip_filelist:
                     raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), os.path.join(zip_path,result[1]))
@@ -263,6 +250,7 @@ def build():
         runpy._run_module_as_main=new_run_module
         del sys.modules['importlib._bootstrap_external']
         importlib.reload(sys.modules['importlib']) #Reload runpy
+        
         #Finds C extensions in 'extensions' folder and returns the path to be used to be imported by normal Python machinery
         class ExtensionFinder():
             def find_spec(self,fullname, path, target=None):
@@ -292,7 +280,23 @@ def build():
                     else:
                         return []
             sys.meta_path.insert(0,DistributionFinder())
-        
+            
+        class UnionException(ImportError):
+            def __init__(self,oserror):
+                self.oserror=oserror
+                super().__init__()
+            def __repr__(self):
+                return repr(self.oserror)
+            def __str__(self):
+                return str(self.oserror)
+                
+        old_exec_module=copy(__loader__.__class__.exec_module)
+        def new_exec_module(*args,**kwargs):
+            try:
+                return old_exec_module(*args,**kwargs)
+            except OSError as e: #So that modules that fail to import due to missing so files will just recieve an ImportError
+                raise UnionException(e)
+        __loader__.__class__.exec_module=new_exec_module
         sys.meta_path.insert(0,ExtensionFinder()) #Run this before anything else, otherwise, some extensions will not be imported
         sys.path.append(os.path.join(dir_path,"_vendor")) #So third-party modules can be imported
         sys.path.insert(0,dir_path)
@@ -305,10 +309,10 @@ def build():
                 import NAME
                 NAME.main() #Run main function provided in the actual module
         os.environ['PYTHONPATH']=os.getenv('PYTHONPATH','')+os.pathsep+dir_path #So subprocesses will pick up the setup code
+
     def init_template():
         import NAME.usercustomize
-        mod_main=NAME.usercustomize.mod_main
-                           
+        mod_main=NAME.usercustomize.mod_main                  
         import importlib,sys
         importlib.reload(sys.modules['NAME']) #Load actual module
         globals().update(sys.modules['NAME'].__dict__)
@@ -318,7 +322,7 @@ def build():
         sys.excepthook = traceback.print_exception #Arcane incantation required to get tracebacks working. Python's C traceback doesn't work, but the Python traceback module does, so use that.
 
         sys.path.insert(0,os.path.abspath(os.path.dirname(__file__))) #So the wrapper module is imported instead.
-       
+        
         import NAME #Import wrapper
         NAME.mod_main() #Run function
         
