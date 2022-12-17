@@ -149,7 +149,7 @@ def build():
             
             if result[0]:
                 if result[1] not in zip_filelist:
-                    if result[1]+'/' in zip_filelist:
+                    if result[1]+'/' in zip_filelist: #When path is a folder but doesn't have the slash
                         result[1]+='/'
                     else:
                        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), os.path.join(zip_path,result[1]))
@@ -220,8 +220,11 @@ def build():
                 return zip_stat_class(filestat)
         os.stat=new_stat
         
-        importlib.reload(sys.modules['pathlib']) #So it picks up new io and os
-        importlib.reload(sys.modules['tokenize']) #So it picks up new io and os
+        for _ in ['pathlib','tokenize']:
+            try:
+                importlib.reload(sys.modules[_]) #So it picks up new io and os
+            except:
+                pass
 
         old_unmarshal=sys.modules['zipimport']._unmarshal_code
         def new_unmarshal(*args,**kwargs): #Rewrite co_filename to match path inside zip for tracebacks
@@ -246,9 +249,10 @@ def build():
         import runpy
         old_run_module=copy(runpy._run_module_as_main)
         def new_run_module(*args,**kwargs):
-            if not is_path_in_zipfile(sys.path[0]):
+            if not is_path_in_zipfile(sys.path[0])[0]:
                 old_run_module(*args,**kwargs)
             else:
+                print(is_path_in_zipfile(sys.path[0]))
                 exec(open(sys.path[0]).read(),globals())
         runpy._run_module_as_main=new_run_module
         del sys.modules['importlib._bootstrap_external']
@@ -372,5 +376,5 @@ def get():
             build()
             shutil.move(normalized_module,os.path.join(old_cwd,binary))
             if args.extensions:
-                shutil.copytree("_extensions",os.path.join(old_cwd,"_extensions"))
+                shutil.copytree("_extensions",os.path.join(old_cwd,"_extensions"),dirs_exist_ok=True)
 globals()[args.action]()
