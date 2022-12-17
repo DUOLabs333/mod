@@ -177,7 +177,6 @@ def build():
         sys.modules['_io'].open=new_open
         
         old_listdir=os.listdir
-        zip_listdir=[_.rstrip('/') for _ in zip_filelist]
         
         @staticmethod
         @functools.cache
@@ -188,7 +187,7 @@ def build():
             if not path[0]:
                 return old_listdir(*args,**kwargs)
             else:
-                return [os.path.relpath(_,path[1]) for _ in zip_listdir if _.startswith(path[1]) and _.rstrip('/').count('/')==path[1].count('/') ]
+                return [os.path.relpath(_,path[1]) for _ in zip_filelist if _.startswith(path[1]) and _.rstrip('/').count('/')==path[1].count('/') ]
         os.listdir=new_listdir
         
         file_stats={} #Cache stat of files in Zipfile
@@ -212,7 +211,7 @@ def build():
                     file_stats[path[1]].append([stat.ST_SIZE,fileSize])
                     fileobj.close()
                     
-                    file_stats[path[1]].append([stat.ST_MODE, stat.S_IFDIR if zipfile.Path(Zipfile,path[1]).is_dir() else stat.S_IFREG])
+                    file_stats[path[1]].append([stat.ST_MODE, stat.S_IFDIR if path[1].endswith('/') else stat.S_IFREG])
                 filestat=zip_stat.copy()
                 for i in file_stats[path[1]]:
                     filestat[i[0]]=i[1]
