@@ -68,7 +68,7 @@ def build():
         
         
         subfolders=[os.path.relpath(_,os.path.join(project_root,real_folder)) for _ in subfolders]
-
+        subfolders[0]=""
         for file in files:
             _input_file=os.path.join(project_root,real_folder,file)
             _output_file=os.path.join(project_name,zip_folder,file)
@@ -96,9 +96,9 @@ def build():
                 _input_file=os.path.join(project_root,real_folder,file)
                 _output_file=os.path.join(project_name,zip_folder,file)
                 output_file.write(_input_file,arcname=_output_file)
-    
+
         for folder in subfolders: #Add empty directories to zip files to support namespace packages
-            output_file.writestr(zipfile.ZipInfo(os.path.join(project_name,zip_folder,folder)+"/"),"")
+            output_file.writestr(zipfile.ZipInfo(os.path.join(project_name,zip_folder,folder)+("" if folder=="" else "/")),"")
             pass     
     add_folder_to_zipapp("_vendor")
     add_folder_to_zipapp("src","")
@@ -149,7 +149,10 @@ def build():
             
             if result[0]:
                 if result[1] not in zip_filelist:
-                    raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), os.path.join(zip_path,result[1]))
+                    if result[1]+'/' in zip_filelist:
+                        result[1]+='/'
+                    else:
+                       raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), os.path.join(zip_path,result[1]))
             return result
         
         old_open=copy(open)
@@ -185,7 +188,7 @@ def build():
             if not path[0]:
                 return old_listdir(*args,**kwargs)
             else:
-                return [os.path.relpath(_,path[1]) for _ in zip_listdir if _.startswith(path[1]) and _.count('/')==1+path[1].count('/') ]
+                return [os.path.relpath(_,path[1]) for _ in zip_listdir if _.startswith(path[1]) and _.rstrip('/').count('/')==path[1].count('/') ]
         os.listdir=new_listdir
         
         file_stats={} #Cache stat of files in Zipfile
@@ -262,7 +265,7 @@ def build():
                     return
                 if os.path.exists(extension_path):
                     return importlib.util.spec_from_file_location(fullname,extension_path)
-        if 0:
+        if 1:
             import importlib.metadata
             class CustomDistribution(importlib.metadata.Distribution):
                 def __init__(self,name):
