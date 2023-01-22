@@ -179,7 +179,7 @@ def build():
         old_listdir=os.listdir
         
         @staticmethod
-        @functools.cache
+        #@functools.cache Can't cache it if the path is not in the zipapp
         def new_listdir(*args,**kwargs):
             path=args[0]
             path=is_path_in_zipfile(path)
