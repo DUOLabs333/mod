@@ -134,7 +134,7 @@ def build():
             #Maybe support parameter mode, so redirect to empty file if writing. Make wrapper around common os functions all just getting new file and passing it in.
             result=[]
             _path=path
-            if isinstance(path,int):
+            if isinstance(path,(int,bytes)):
                 return [False,path]
                 
             path=os.path.abspath(path)
