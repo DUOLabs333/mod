@@ -127,7 +127,7 @@ def build():
         
         zip_filelist=set(Zipfile.namelist())
         
-        old_stat=copy(os.stat)
+        old_stat=os.stat
         import functools
         
         def is_path_in_zipfile(path):
@@ -155,7 +155,7 @@ def build():
                        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), os.path.join(zip_path,result[1]))
             return result
         
-        old_open=copy(open)
+        old_open=open
         @staticmethod #Allows for use in classes
         def new_open(*args,**kwargs):
             path=args[0]
@@ -191,7 +191,7 @@ def build():
         os.listdir=new_listdir
         
         file_stats={} #Cache stat of files in Zipfile
-        old_stat=copy(os.stat)
+        old_stat=os.stat
 
         @staticmethod
         def new_stat(*args,**kwargs):
