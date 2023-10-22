@@ -273,9 +273,16 @@ def build():
             class CustomDistribution(importlib.metadata.Distribution):
                 def __init__(self,name):
                     import fnmatch
-                    self.dist_path=fnmatch.filter(new_listdir(dir_path+"/_vendor"),name.replace("-","_")+"-*.dist-info")[0]
+                    matches=fnmatch.filter(new_listdir(dir_path+"/_vendor"),name.replace("-","_")+"-*.dist-info")
+                    if len(matches)==0:
+                        self.dist_path=None
+                    else:
+                        self.dist_path=matches[0]
                 def read_text(self, filename):
-                    return open('/'.join([dir_path,"_vendor",self.dist_path,filename])).read()
+                    if self.dist_path is None:
+                        return None
+                    else:
+                        return open('/'.join([dir_path,"_vendor",self.dist_path,filename])).read()
     
             class DistributionFinder(importlib.metadata.DistributionFinder):
                 def find_spec(self,*args,**kwargs): #There's nothing to offer here, so just return nothing
